@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Circuit Lab · TekiDeki</title>
+<meta name="description" content="Breadboard circuit simulator with LEDs, resistors, transistors, relays and sensors, 10 lessons, 60 quiz cards and 12 broken circuits to repair. Free, offline, four languages.">
+<meta name="theme-color" content="#0f766e">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./favicon.ico">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #f4f7f6; --panel: #ffffff; --ink: #0f172a; --muted: #475569; --line: #d7e1df;
+    --accent: #0f766e; --accent-ink: #ffffff; --warn: #b45309; --bad: #b91c1c; --good: #15803d;
+    --board: #f7f1df; --board-line: #d9cfb3; --hole: #5b5244; --rail-p: #dc2626; --rail-m: #2563eb;
+    --part: #1f2937; --glow: #fde047;
+    --radius: 14px; --tap: 44px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220; --panel: #111a2b; --ink: #e2e8f0; --muted: #94a3b8; --line: #243247;
+      --accent: #2dd4bf; --accent-ink: #042f2e; --warn: #fbbf24; --bad: #f87171; --good: #4ade80;
+      --board: #2a2a2e; --board-line: #3f3f46; --hole: #0a0a0a; --part: #e5e7eb;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { min-height: 100vh; -webkit-text-size-adjust: 100%; }
+  button, select, input { font: inherit; color: inherit; }
+  button { min-height: var(--tap); padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; touch-action: manipulation; }
+  button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"], button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.primary { font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+  .brand h1 { margin: 0; font-size: 1.2rem; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
+  .tabs, .langs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tabs button { border-radius: 999px; }
+  .langs button { min-width: 48px; padding: 6px 10px; }
+
+  main { padding: 12px; max-width: 1280px; margin: 0 auto; }
+  section.view { display: none; }
+  section.view.active { display: block; }
+
+  .lab-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 1060px) { .lab-grid { grid-template-columns: minmax(0, 1fr) 340px; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .toolbar .group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
+  .toolbar .group:last-child { border-right: 0; }
+  .toolbar button { padding: 6px 10px; }
+  .toolbar .label { color: var(--muted); font-size: .8rem; margin-right: 2px; }
+  .status { margin: 8px 0 0; min-height: 1.4em; font-size: .95rem; }
+  .status.warn { color: var(--warn); } .status.bad { color: var(--bad); } .status.good { color: var(--good); }
+
+  .board-wrap { background: var(--board); border: 1px solid var(--board-line); border-radius: 12px; padding: 6px; position: relative; }
+  svg.board { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .hint { color: var(--muted); font-size: .9rem; margin: 6px 2px 0; }
+
+  .inspector h2, .panel h2 { font-size: 1rem; margin: 0 0 8px; }
+  .inspector .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin: 8px 0; flex-wrap: wrap; }
+  .inspector label { display: block; font-size: .9rem; color: var(--muted); }
+  .inspector select, .inspector input[type="range"] { min-height: var(--tap); }
+  .inspector select { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+  .inspector input[type="range"] { width: 100%; }
+  .inspector input[type="checkbox"] { width: 22px; height: 22px; }
+  table.readout { width: 100%; border-collapse: collapse; font-size: .9rem; margin-top: 8px; }
+  table.readout th, table.readout td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.readout td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .78rem; background: var(--line); }
+  .tag.on { background: #dcfce7; color: #14532d; } .tag.off { background: var(--line); }
+  .tag.burn { background: #fee2e2; color: #7f1d1d; }
+  @media (prefers-color-scheme: dark) { .tag.on { background: #14532d; color: #dcfce7; } .tag.burn { background: #7f1d1d; color: #fee2e2; } }
+
+  /* lessons */
+  .lesson-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .lesson-grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1040px) { .lesson-grid { grid-template-columns: 1fr 1fr 1fr; } }
+  .lesson-card { display: flex; flex-direction: column; gap: 8px; }
+  .lesson-card .num { color: var(--muted); font-size: .85rem; }
+  .lesson-card h3 { margin: 0; font-size: 1.05rem; }
+  .lesson-card p { margin: 0; color: var(--muted); }
+  .lesson-body p { line-height: 1.6; margin: 0 0 12px; font-size: 1.02rem; }
+  .keybox { border-left: 4px solid var(--accent); padding: 10px 14px; background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 8px; }
+  .keybox strong { display: block; margin-bottom: 4px; }
+  .lesson-nav { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; margin-top: 12px; }
+
+  /* cards */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chips button { border-radius: 999px; font-size: .92rem; }
+  .card-q { font-size: 1.15rem; font-weight: 600; line-height: 1.45; margin: 4px 0 12px; }
+  .options { display: grid; gap: 8px; }
+  .options button { text-align: left; padding: 12px 14px; line-height: 1.4; }
+  .options button.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--panel)); }
+  .options button.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
+  .explain { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--bg); }
+  .progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin: 8px 0 14px; }
+  .progress > span { display: block; height: 100%; background: var(--accent); width: 0; }
+
+  /* repair */
+  .repair-list { display: grid; gap: 6px; margin-bottom: 10px; }
+  .repair-list button { text-align: left; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .repair-list button[aria-current="true"] { outline: 2px solid var(--accent); }
+  .scenario { border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
+  .scenario.ok { border-color: var(--good); } .scenario.fail { border-color: var(--bad); }
+  .scenario ul { margin: 4px 0 0; padding-left: 18px; }
+  .banner { padding: 10px 12px; border-radius: 10px; margin: 8px 0; }
+  .banner.good { background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .banner.bad { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+
+  footer { color: var(--muted); font-size: .88rem; padding: 18px 16px 28px; text-align: center; }
+  footer a { color: var(--accent); }
+  .support-link { display: inline-block; margin-top: 6px; }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 10px 14px; border-radius: 10px; font-size: .92rem; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 92vw; z-index: 9; }
+  .toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* breadboard drawing */
+  .board-bg { fill: var(--board); stroke: var(--board-line); stroke-width: 1.5; }
+  .hole { fill: var(--hole); }
+  .pin { fill: #94a3b8; }
+  .lead { stroke: #94a3b8; stroke-width: 2.2; stroke-linecap: round; }
+  .battery { fill: #334155; stroke: #0f172a; stroke-width: 1; }
+  .wire { fill: none; stroke-width: 4; stroke-linecap: round; opacity: .92; }
+  .wire.selected { stroke-width: 6; opacity: 1; }
+  .lbl-in { font: 700 9px system-ui, sans-serif; fill: #f8fafc; }
+  .cur { font: 700 10px system-ui, sans-serif; fill: var(--ink); paint-order: stroke; stroke: var(--board); stroke-width: 3px; }
+  .sign { font: 700 10px system-ui, sans-serif; fill: var(--ink); }
+  .plus { font: 700 14px system-ui, sans-serif; fill: #dc2626; }
+  .minus { font: 700 16px system-ui, sans-serif; fill: #2563eb; }
+  .rail-sign { font: 700 12px system-ui, sans-serif; }
+  .colnum, .rowletter { font: 600 9px system-ui, sans-serif; fill: var(--muted); }
+  .channel { font: 600 10px system-ui, sans-serif; fill: var(--muted); letter-spacing: .2em; }
+  .pending { fill: none; stroke: #f59e0b; stroke-width: 3; }
+  .measure { fill: none; stroke: #2563eb; stroke-width: 2.5; }
+  .measure-txt { font: 700 11px system-ui, sans-serif; fill: #1d4ed8; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+  .burnt { fill: #f87171; font: 700 14px system-ui, sans-serif; }
+  .part { cursor: pointer; }
+  .part.selected-part { filter: drop-shadow(0 0 3px #facc15); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1 id="appTitle">Circuit Lab</h1>
+    <p id="tagline"></p>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end">
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-tab="lab" id="tabBtnLab" aria-selected="true">Lab</button>
+      <button role="tab" data-tab="lessons" id="tabBtnLessons" aria-selected="false">Lessons</button>
+      <button role="tab" data-tab="cards" id="tabBtnCards" aria-selected="false">Cards</button>
+      <button role="tab" data-tab="repair" id="tabBtnRepair" aria-selected="false">Broken circuits</button>
+    </nav>
+    <nav class="langs" aria-label="Language">
+      <button data-lang="ro" aria-pressed="false">RO</button>
+      <button data-lang="en" aria-pressed="false">EN</button>
+      <button data-lang="sr-latn" aria-pressed="false">SR</button>
+      <button data-lang="sr-cyrl" aria-pressed="false">СР</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- LAB and REPAIR share the same breadboard -->
+  <section class="view active" id="view-lab" aria-labelledby="tabBtnLab">
+    <div class="lab-grid">
+      <div class="panel">
+        <div class="toolbar" id="toolbar">
+          <div class="group" id="groupTools"></div>
+          <div class="group" id="groupParts"></div>
+        </div>
+        <div class="board-wrap">
+          <svg class="board" id="board" viewBox="0 -36 614 416" role="img" aria-label="Breadboard"></svg>
+        </div>
+        <div class="toolbar" style="margin-top:8px">
+          <button class="primary" id="btnSimulate">Simulate</button>
+          <button id="btnUndo">Undo</button>
+          <button id="btnClear">Clear</button>
+          <label class="sr-only" for="examples">Examples</label>
+          <select id="examples" style="min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel)"></select>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+        <p class="hint" id="toolHint"></p>
+      </div>
+
+      <aside class="panel inspector" id="side" aria-live="polite">
+        <div id="repairPanel" hidden></div>
+        <h2 id="inspectTitle">Selected part</h2>
+        <div id="inspectBody"></div>
+        <h2 style="margin-top:14px" id="readoutTitle">Status</h2>
+        <div id="readout"></div>
+        <p class="hint" id="dcNote"></p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="view" id="view-lessons" aria-labelledby="tabBtnLessons">
+    <div id="lessonsRoot"></div>
+  </section>
+
+  <section class="view" id="view-cards" aria-labelledby="tabBtnCards">
+    <div id="cardsRoot"></div>
+  </section>
+</main>
+
+<footer>
+  <div id="footerCredits"></div>
+  <div id="footerPrivacy"></div>
+  <a class="support-link" href="https://paypal.me/TekiDeki" rel="noopener" id="donateLink">Support the project</a>
+  <div>· <a href="https://github.com/TekiDeki/Circuit-Simulator" rel="noopener">GitHub</a> · <a href="./LICENSE">LICENSE</a></div>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/*@@ENGINE@@*/
+</script>
+<script>
+/*@@CONTENT_UI@@*/
+</script>
+<script>
+/*@@CONTENT_LESSONS@@*/
+</script>
+<script>
+/*@@CONTENT_CARDS@@*/
+</script>
+<script>
+/*@@CONTENT_REPAIR@@*/
+</script>
+<script>
+/*@@APP@@*/
+</script>
+<noscript><p style="padding:16px">Circuit Lab needs JavaScript to run the simulator.</p></noscript>
+</body>
+</html>

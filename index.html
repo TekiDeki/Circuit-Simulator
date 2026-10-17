@@ -1,0 +1,3033 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Circuit Lab · TekiDeki</title>
+<meta name="description" content="Breadboard circuit simulator with LEDs, resistors, transistors, relays and sensors, 10 lessons, 60 quiz cards and 12 broken circuits to repair. Free, offline, four languages.">
+<meta name="theme-color" content="#0f766e">
+<meta name="color-scheme" content="light dark">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./favicon.ico">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #f4f7f6; --panel: #ffffff; --ink: #0f172a; --muted: #475569; --line: #d7e1df;
+    --accent: #0f766e; --accent-ink: #ffffff; --warn: #b45309; --bad: #b91c1c; --good: #15803d;
+    --board: #f7f1df; --board-line: #d9cfb3; --hole: #5b5244; --rail-p: #dc2626; --rail-m: #2563eb;
+    --part: #1f2937; --glow: #fde047;
+    --radius: 14px; --tap: 44px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220; --panel: #111a2b; --ink: #e2e8f0; --muted: #94a3b8; --line: #243247;
+      --accent: #2dd4bf; --accent-ink: #042f2e; --warn: #fbbf24; --bad: #f87171; --good: #4ade80;
+      --board: #2a2a2e; --board-line: #3f3f46; --hole: #0a0a0a; --part: #e5e7eb;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { min-height: 100vh; -webkit-text-size-adjust: 100%; }
+  button, select, input { font: inherit; color: inherit; }
+  button { min-height: var(--tap); padding: 8px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; touch-action: manipulation; }
+  button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"], button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.primary { font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+  .brand h1 { margin: 0; font-size: 1.2rem; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
+  .tabs, .langs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tabs button { border-radius: 999px; }
+  .langs button { min-width: 48px; padding: 6px 10px; }
+
+  main { padding: 12px; max-width: 1280px; margin: 0 auto; }
+  section.view { display: none; }
+  section.view.active { display: block; }
+
+  .lab-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 1060px) { .lab-grid { grid-template-columns: minmax(0, 1fr) 340px; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .toolbar .group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
+  .toolbar .group:last-child { border-right: 0; }
+  .toolbar button { padding: 6px 10px; }
+  .toolbar .label { color: var(--muted); font-size: .8rem; margin-right: 2px; }
+  .status { margin: 8px 0 0; min-height: 1.4em; font-size: .95rem; }
+  .status.warn { color: var(--warn); } .status.bad { color: var(--bad); } .status.good { color: var(--good); }
+
+  .board-wrap { background: var(--board); border: 1px solid var(--board-line); border-radius: 12px; padding: 6px; position: relative; }
+  svg.board { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .hint { color: var(--muted); font-size: .9rem; margin: 6px 2px 0; }
+
+  .inspector h2, .panel h2 { font-size: 1rem; margin: 0 0 8px; }
+  .inspector .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin: 8px 0; flex-wrap: wrap; }
+  .inspector label { display: block; font-size: .9rem; color: var(--muted); }
+  .inspector select, .inspector input[type="range"] { min-height: var(--tap); }
+  .inspector select { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+  .inspector input[type="range"] { width: 100%; }
+  .inspector input[type="checkbox"] { width: 22px; height: 22px; }
+  table.readout { width: 100%; border-collapse: collapse; font-size: .9rem; margin-top: 8px; }
+  table.readout th, table.readout td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.readout td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .78rem; background: var(--line); }
+  .tag.on { background: #dcfce7; color: #14532d; } .tag.off { background: var(--line); }
+  .tag.burn { background: #fee2e2; color: #7f1d1d; }
+  @media (prefers-color-scheme: dark) { .tag.on { background: #14532d; color: #dcfce7; } .tag.burn { background: #7f1d1d; color: #fee2e2; } }
+
+  /* lessons */
+  .lesson-grid { display: grid; gap: 12px; grid-template-columns: 1fr; }
+  @media (min-width: 720px) { .lesson-grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1040px) { .lesson-grid { grid-template-columns: 1fr 1fr 1fr; } }
+  .lesson-card { display: flex; flex-direction: column; gap: 8px; }
+  .lesson-card .num { color: var(--muted); font-size: .85rem; }
+  .lesson-card h3 { margin: 0; font-size: 1.05rem; }
+  .lesson-card p { margin: 0; color: var(--muted); }
+  .lesson-body p { line-height: 1.6; margin: 0 0 12px; font-size: 1.02rem; }
+  .keybox { border-left: 4px solid var(--accent); padding: 10px 14px; background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 8px; }
+  .keybox strong { display: block; margin-bottom: 4px; }
+  .lesson-nav { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; margin-top: 12px; }
+
+  /* cards */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chips button { border-radius: 999px; font-size: .92rem; }
+  .card-q { font-size: 1.15rem; font-weight: 600; line-height: 1.45; margin: 4px 0 12px; }
+  .options { display: grid; gap: 8px; }
+  .options button { text-align: left; padding: 12px 14px; line-height: 1.4; }
+  .options button.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 14%, var(--panel)); }
+  .options button.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--panel)); }
+  .explain { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--bg); }
+  .progress { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; margin: 8px 0 14px; }
+  .progress > span { display: block; height: 100%; background: var(--accent); width: 0; }
+
+  /* repair */
+  .repair-list { display: grid; gap: 6px; margin-bottom: 10px; }
+  .repair-list button { text-align: left; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .repair-list button[aria-current="true"] { outline: 2px solid var(--accent); }
+  .scenario { border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
+  .scenario.ok { border-color: var(--good); } .scenario.fail { border-color: var(--bad); }
+  .scenario ul { margin: 4px 0 0; padding-left: 18px; }
+  .banner { padding: 10px 12px; border-radius: 10px; margin: 8px 0; }
+  .banner.good { background: color-mix(in srgb, var(--good) 14%, transparent); }
+  .banner.bad { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+
+  footer { color: var(--muted); font-size: .88rem; padding: 18px 16px 28px; text-align: center; }
+  footer a { color: var(--accent); }
+  .support-link { display: inline-block; margin-top: 6px; }
+  .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--panel); padding: 10px 14px; border-radius: 10px; font-size: .92rem; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: 92vw; z-index: 9; }
+  .toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* breadboard drawing */
+  .board-bg { fill: var(--board); stroke: var(--board-line); stroke-width: 1.5; }
+  .hole { fill: var(--hole); }
+  .pin { fill: #94a3b8; }
+  .lead { stroke: #94a3b8; stroke-width: 2.2; stroke-linecap: round; }
+  .battery { fill: #334155; stroke: #0f172a; stroke-width: 1; }
+  .wire { fill: none; stroke-width: 4; stroke-linecap: round; opacity: .92; }
+  .wire.selected { stroke-width: 6; opacity: 1; }
+  .lbl-in { font: 700 9px system-ui, sans-serif; fill: #f8fafc; }
+  .cur { font: 700 10px system-ui, sans-serif; fill: var(--ink); paint-order: stroke; stroke: var(--board); stroke-width: 3px; }
+  .sign { font: 700 10px system-ui, sans-serif; fill: var(--ink); }
+  .plus { font: 700 14px system-ui, sans-serif; fill: #dc2626; }
+  .minus { font: 700 16px system-ui, sans-serif; fill: #2563eb; }
+  .rail-sign { font: 700 12px system-ui, sans-serif; }
+  .colnum, .rowletter { font: 600 9px system-ui, sans-serif; fill: var(--muted); }
+  .channel { font: 600 10px system-ui, sans-serif; fill: var(--muted); letter-spacing: .2em; }
+  .pending { fill: none; stroke: #f59e0b; stroke-width: 3; }
+  .measure { fill: none; stroke: #2563eb; stroke-width: 2.5; }
+  .measure-txt { font: 700 11px system-ui, sans-serif; fill: #1d4ed8; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+  .burnt { fill: #f87171; font: 700 14px system-ui, sans-serif; }
+  .part { cursor: pointer; }
+  .part.selected-part { filter: drop-shadow(0 0 3px #facc15); }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1 id="appTitle">Circuit Lab</h1>
+    <p id="tagline"></p>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end">
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-tab="lab" id="tabBtnLab" aria-selected="true">Lab</button>
+      <button role="tab" data-tab="lessons" id="tabBtnLessons" aria-selected="false">Lessons</button>
+      <button role="tab" data-tab="cards" id="tabBtnCards" aria-selected="false">Cards</button>
+      <button role="tab" data-tab="repair" id="tabBtnRepair" aria-selected="false">Broken circuits</button>
+    </nav>
+    <nav class="langs" aria-label="Language">
+      <button data-lang="ro" aria-pressed="false">RO</button>
+      <button data-lang="en" aria-pressed="false">EN</button>
+      <button data-lang="sr-latn" aria-pressed="false">SR</button>
+      <button data-lang="sr-cyrl" aria-pressed="false">СР</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- LAB and REPAIR share the same breadboard -->
+  <section class="view active" id="view-lab" aria-labelledby="tabBtnLab">
+    <div class="lab-grid">
+      <div class="panel">
+        <div class="toolbar" id="toolbar">
+          <div class="group" id="groupTools"></div>
+          <div class="group" id="groupParts"></div>
+        </div>
+        <div class="board-wrap">
+          <svg class="board" id="board" viewBox="0 -36 614 416" role="img" aria-label="Breadboard"></svg>
+        </div>
+        <div class="toolbar" style="margin-top:8px">
+          <button class="primary" id="btnSimulate">Simulate</button>
+          <button id="btnUndo">Undo</button>
+          <button id="btnClear">Clear</button>
+          <label class="sr-only" for="examples">Examples</label>
+          <select id="examples" style="min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel)"></select>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+        <p class="hint" id="toolHint"></p>
+      </div>
+
+      <aside class="panel inspector" id="side" aria-live="polite">
+        <div id="repairPanel" hidden></div>
+        <h2 id="inspectTitle">Selected part</h2>
+        <div id="inspectBody"></div>
+        <h2 style="margin-top:14px" id="readoutTitle">Status</h2>
+        <div id="readout"></div>
+        <p class="hint" id="dcNote"></p>
+      </aside>
+    </div>
+  </section>
+
+  <section class="view" id="view-lessons" aria-labelledby="tabBtnLessons">
+    <div id="lessonsRoot"></div>
+  </section>
+
+  <section class="view" id="view-cards" aria-labelledby="tabBtnCards">
+    <div id="cardsRoot"></div>
+  </section>
+</main>
+
+<footer>
+  <div id="footerCredits"></div>
+  <div id="footerPrivacy"></div>
+  <a class="support-link" href="https://paypal.me/TekiDeki" rel="noopener" id="donateLink">Support the project</a>
+  <div>· <a href="https://github.com/TekiDeki/Circuit-Simulator" rel="noopener">GitHub</a> · <a href="./LICENSE">LICENSE</a></div>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Kristian Mario Mišković (TekiDeki)
+ * Circuit engine: breadboard connectivity, modified nodal analysis (MNA) and
+ * Newton-Raphson for diodes, LEDs and an Ebers-Moll NPN transistor.
+ * DC steady state only. No DOM access, so it can be tested with Node. */
+(function (global) {
+  'use strict';
+
+  const VT = 0.025852;          // thermal voltage at 300 K
+  const COLS = 30;              // breadboard columns
+  const ROWS_A = ['a', 'b', 'c', 'd', 'e'];
+  const ROWS_B = ['f', 'g', 'h', 'i', 'j'];
+  const RAILS = ['P1', 'P2'];   // each rail pair has a "+" and a "-" row
+  const G_OPEN = 1e-9;          // open contacts / open switches leak 1 GOhm
+  const R_CLOSED = 0.01;        // closed switch, relay contact
+  const R_BATT_INT = 0.2;       // battery internal resistance
+  const R_RELAY_COIL = 70;      // 5 V relay coil
+  const LIMIT_STEP = 0.4;       // max change of a junction voltage per Newton step
+
+  const LIMITS = {
+    ledMaxA: 0.030,             // above 30 mA the LED burns
+    ledReverseV: -5,            // reverse voltage above 5 V burns the LED
+    diodeMaxA: 0.300,
+    resistorMaxW: 0.25,
+    transistorMaxA: 0.500,
+    batteryShortA: 1.0,         // above 1 A the battery is shorted (warning only)
+    relayPullA: 0.030,
+    relayReleaseA: 0.012,
+    ledOnA: 0.0005,
+    ledFullA: 0.015
+  };
+
+  const LED_COLORS = {
+    red:    { Vf: 1.9, hex: '#ef4444' },
+    green:  { Vf: 2.1, hex: '#22c55e' },
+    yellow: { Vf: 2.0, hex: '#facc15' },
+    blue:   { Vf: 3.0, hex: '#3b82f6' },
+    white:  { Vf: 3.1, hex: '#f8fafc' }
+  };
+
+  const RESISTOR_VALUES = [10, 47, 100, 220, 330, 470, 1000, 4700, 10000, 100000];
+  const BATTERY_VOLTAGES = [3, 4.5, 6, 9, 12];
+
+  // pins: dc = column offset from the anchor column.
+  // rail parts: rail = true, pins use pol ('+' or '-') on the clicked rail pair.
+  const TYPES = {
+    battery:   { rail: true, pins: [{ dc: 0, pol: '+' }, { dc: 0, pol: '-' }], defaults: { V: 9 } },
+    resistor:  { pins: [{ dc: 0 }, { dc: 4 }], defaults: { R: 220 } },
+    led:       { pins: [{ dc: 0 }, { dc: 1 }], defaults: { color: 'red' } },            // 0 anode, 1 cathode
+    diode:     { pins: [{ dc: 0 }, { dc: 2 }], defaults: {} },                          // 0 anode, 1 cathode
+    capacitor: { pins: [{ dc: 0 }, { dc: 2 }], defaults: { uF: 100 } },
+    button:    { pins: [{ dc: 0 }, { dc: 2 }], defaults: { pressed: false } },
+    switch:    { pins: [{ dc: 0 }, { dc: 2 }], defaults: { on: false } },
+    npn:       { pins: [{ dc: 0 }, { dc: 1 }, { dc: 2 }], defaults: {} },               // 0 B, 1 C, 2 E
+    relay:     { pins: [{ dc: 0 }, { dc: 1 }, { dc: 2 }, { dc: 3 }, { dc: 4 }], defaults: {} }, // 0,1 coil; 2 COM, 3 NO, 4 NC
+    ldr:       { pins: [{ dc: 0 }, { dc: 2 }], defaults: { light: 0.5 } },              // 0..1 light level
+    ntc:       { pins: [{ dc: 0 }, { dc: 2 }], defaults: { temp: 25 } },                // degrees C
+    pot:       { pins: [{ dc: 0 }, { dc: 1 }, { dc: 2 }], defaults: { pos: 0.5 } }      // 0 a, 1 wiper, 2 b
+  };
+
+  // ---------- breadboard geometry ----------
+  function parseHole(h) {
+    const m = /^(P[12][+-]|[a-j])(\d+)$/.exec(String(h));
+    if (!m) return null;
+    const col = Number(m[2]);
+    if (col < 1 || col > COLS) return null;
+    return { row: m[1], col: col };
+  }
+
+  function holeId(row, col) { return row + col; }
+
+  // Holes that share a strip are electrically connected.
+  function stripOf(h) {
+    const p = parseHole(h);
+    if (!p) return null;
+    if (p.row[0] === 'P') return 'R' + p.row;               // whole rail row is one strip
+    const half = ROWS_A.indexOf(p.row) >= 0 ? 'A' : 'B';    // a-e and f-j are split by the centre gap
+    return 'C' + p.col + half;
+  }
+
+  function partRowFor(type, clickedRow) {
+    const spec = TYPES[type];
+    if (spec.rail) return clickedRow[0] === 'P' ? clickedRow.slice(0, 2) : null;
+    return clickedRow[0] === 'P' ? null : clickedRow;
+  }
+
+  function partPins(part) {
+    const spec = TYPES[part.type];
+    return spec.pins.map(p => {
+      const row = spec.rail ? part.row + p.pol : part.row;
+      return holeId(row, part.col + p.dc);
+    });
+  }
+
+  // Returns { ok, reason } for placing a part with its anchor hole at (row, col).
+  function checkPlacement(circuit, type, clickedHole, ignoreId) {
+    const hp = parseHole(clickedHole);
+    if (!hp) return { ok: false, reason: 'badHole' };
+    const row = partRowFor(type, hp.row);
+    if (!row) return { ok: false, reason: TYPES[type].rail ? 'needsRail' : 'noRail' };
+    const probe = { type: type, row: row, col: hp.col };
+    const pins = partPins(probe);
+    const used = new Set();
+    for (const p of circuit.parts) {
+      if (p.id === ignoreId) continue;
+      for (const h of partPins(p)) used.add(h);
+    }
+    for (const h of pins) {
+      const ph = parseHole(h);
+      if (!ph) return { ok: false, reason: 'offBoard' };
+      if (used.has(h)) return { ok: false, reason: 'occupied' };
+    }
+    return { ok: true, row: row, col: hp.col, pins: pins };
+  }
+
+  // ---------- small dense linear solver ----------
+  function solveDense(A, b, n) {
+    for (let k = 0; k < n; k++) {
+      let p = k, max = Math.abs(A[k * n + k]);
+      for (let i = k + 1; i < n; i++) {
+        const v = Math.abs(A[i * n + k]);
+        if (v > max) { max = v; p = i; }
+      }
+      if (max < 1e-300) throw new Error('singular');
+      if (p !== k) {
+        for (let j = 0; j < n; j++) { const t = A[k * n + j]; A[k * n + j] = A[p * n + j]; A[p * n + j] = t; }
+        const tb = b[k]; b[k] = b[p]; b[p] = tb;
+      }
+      const piv = A[k * n + k];
+      for (let i = k + 1; i < n; i++) {
+        const f = A[i * n + k] / piv;
+        if (f === 0) continue;
+        for (let j = k; j < n; j++) A[i * n + j] -= f * A[k * n + j];
+        b[i] -= f * b[k];
+      }
+    }
+    const x = new Float64Array(n);
+    for (let i = n - 1; i >= 0; i--) {
+      let s = b[i];
+      for (let j = i + 1; j < n; j++) s -= A[i * n + j] * x[j];
+      x[i] = s / A[i * n + i];
+    }
+    return x;
+  }
+
+  function clampExp(v) { return Math.exp(Math.min(v, 60)); }
+
+  // Diode-like junction. Returns current from anode to cathode and its slope.
+  function junction(v, Is, n) {
+    const e = clampExp(v / (n * VT));
+    return { i: Is * (e - 1), g: Is / (n * VT) * e };
+  }
+
+  // Ebers-Moll transport model for an NPN. vbe, vbc in volts.
+  function npnCurrents(vbe, vbc, p) {
+    const Is = p.Is, bF = p.bF, bR = p.bR;
+    const eF = clampExp(vbe / VT), eR = clampExp(vbc / VT);
+    const If = Is * (eF - 1), Ir = Is * (eR - 1);
+    const dIf = Is / VT * eF, dIr = Is / VT * eR;
+    const iB = If / bF + Ir / bR;
+    const iC = If - Ir * (1 + 1 / bR);
+    return {
+      iB: iB, iC: iC,
+      dIBbe: dIf / bF, dIBbc: dIr / bR,
+      dICbe: dIf, dICbc: -dIr * (1 + 1 / bR)
+    };
+  }
+
+  const DIODE_MODELS = {
+    led: function (color) {
+      const Vf = LED_COLORS[color].Vf;
+      const n = 2.0;
+      return { n: n, Is: 0.02 / Math.exp(Vf / (n * VT)) };
+    },
+    diode: function () { const n = 1.8; return { n: n, Is: 0.01 / Math.exp(0.7 / (n * VT)) }; }
+  };
+
+  const NPN_MODEL = { Is: 1e-14, bF: 150, bR: 3 };
+
+  // ---------- circuit simulation ----------
+  function simulate(circuit) {
+    let guard = 0;
+    let result = null;
+    const allBurned = [];
+    for (;;) {
+      result = solveOnce(circuit, 0);
+      if (!result.burnedNow.length || guard++ >= 4) break;
+      for (const id of result.burnedNow) {
+        const part = circuit.parts.find(p => p.id === id);
+        if (part) { part.burned = true; allBurned.push(id); }
+      }
+    }
+    result.burnedNow = [...new Set(allBurned)];
+    return result;
+  }
+
+  function solveOnce(circuit, depth) {
+    depth = depth || 0;
+    const warnings = [];
+    const burnedNow = [];
+
+    // 1. union-find over strips, joined by wires
+    const parent = new Map();
+    const find = k => {
+      if (!parent.has(k)) parent.set(k, k);
+      let r = k;
+      while (parent.get(r) !== r) r = parent.get(r);
+      let c = k;
+      while (parent.get(c) !== r) { const nx = parent.get(c); parent.set(c, r); c = nx; }
+      return r;
+    };
+    const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent.set(ra, rb); };
+    for (const w of circuit.wires) {
+      const sa = stripOf(w.a), sb = stripOf(w.b);
+      if (sa && sb) union(sa, sb);
+    }
+
+    const batteries = circuit.parts.filter(p => !p.burned && p.type === 'battery');
+    const parts = circuit.parts;
+    const info = new Map();
+    for (const p of parts) info.set(p.id, { id: p.id, type: p.type, V: 0, I: 0, P: 0, on: false, burned: !!p.burned });
+
+    if (!batteries.length) {
+      return {
+        ok: false, noPower: true, warnings: [{ code: 'noPower' }], burnedNow: [],
+        converged: true, batteryCurrent: 0, parts: info,
+        nodeVoltage: () => null
+      };
+    }
+
+    // 2. ground = minus pin of the first battery
+    const groundPin = partPins(batteries[0])[1];
+    const groundRoot = find(stripOf(groundPin));
+
+    // 3. node indices
+    const nodeIndex = new Map();
+    let nNodes = 0;
+    const nodeOfRoot = root => {
+      if (root === groundRoot) return -1;
+      if (!nodeIndex.has(root)) nodeIndex.set(root, nNodes++);
+      return nodeIndex.get(root);
+    };
+    const nodeOfHole = h => nodeOfRoot(find(stripOf(h)));
+    // make sure every pin/wire strip has a node
+    for (const p of parts) for (const h of partPins(p)) nodeOfHole(h);
+    for (const w of circuit.wires) { nodeOfHole(w.a); nodeOfHole(w.b); }
+
+    // 4. elements
+    const linear = [];       // { a, b, g, part, kind }
+    const sources = [];      // { x, m, V, part }  (x = internal node, m = minus)
+    const devices = [];      // nonlinear
+    const relayCoils = [];
+
+    for (const p of parts) {
+      if (p.burned) continue;
+      const pins = partPins(p).map(nodeOfHole);
+      const pr = (p.props || {});
+      switch (p.type) {
+        case 'battery': {
+          const x = nNodes++;             // internal node behind the internal resistance
+          linear.push({ a: pins[0], b: x, g: 1 / R_BATT_INT, part: p, kind: 'batt' });
+          sources.push({ x: x, m: pins[1], V: pr.V !== undefined ? pr.V : 9, part: p });
+          break;
+        }
+        case 'resistor': {
+          const R = pr.R || 220;
+          linear.push({ a: pins[0], b: pins[1], g: 1 / R, part: p, kind: 'R', R: R });
+          break;
+        }
+        case 'ldr': {
+          const L = Math.min(1, Math.max(0, pr.light === undefined ? 0.5 : pr.light));
+          const R = Math.exp(Math.log(1e6) * (1 - L) + Math.log(1e3) * L);
+          linear.push({ a: pins[0], b: pins[1], g: 1 / R, part: p, kind: 'R', R: R });
+          break;
+        }
+        case 'ntc': {
+          const T = pr.temp === undefined ? 25 : pr.temp;
+          const R = 10000 * Math.exp(3950 * (1 / (T + 273.15) - 1 / 298.15));
+          linear.push({ a: pins[0], b: pins[1], g: 1 / R, part: p, kind: 'R', R: R });
+          break;
+        }
+        case 'pot': {
+          const pos = Math.min(0.999, Math.max(0.001, pr.pos === undefined ? 0.5 : pr.pos));
+          const total = 10000;
+          // pos = 0: wiper at b (0 V end); pos = 1: wiper at a (supply end). Wiper voltage = V x pos (unloaded).
+          linear.push({ a: pins[0], b: pins[1], g: 1 / Math.max(total * (1 - pos), 0.001), part: p, kind: 'potA', R: total * (1 - pos) });
+          linear.push({ a: pins[1], b: pins[2], g: 1 / Math.max(total * pos, 0.001), part: p, kind: 'potB', R: total * pos });
+          break;
+        }
+        case 'capacitor': {
+          linear.push({ a: pins[0], b: pins[1], g: G_OPEN, part: p, kind: 'open' });
+          break;
+        }
+        case 'button':
+        case 'switch': {
+          const closed = p.type === 'button' ? !!pr.pressed : !!pr.on;
+          linear.push({ a: pins[0], b: pins[1], g: closed ? 1 / R_CLOSED : G_OPEN, part: p, kind: 'sw', closed: closed });
+          break;
+        }
+        case 'led': {
+          const m = DIODE_MODELS.led(pr.color || 'red');
+          devices.push({ type: 'diode', pins: [pins[0], pins[1]], n: m.n, Is: m.Is, part: p, lin: [0] });
+          break;
+        }
+        case 'diode': {
+          const m = DIODE_MODELS.diode();
+          devices.push({ type: 'diode', pins: [pins[0], pins[1]], n: m.n, Is: m.Is, part: p, lin: [0] });
+          break;
+        }
+        case 'npn': {
+          devices.push({ type: 'npn', pins: [pins[0], pins[1], pins[2]], part: p, lin: [0, 0] });
+          break;
+        }
+        case 'relay': {
+          if (!p.state) p.state = { closed: false };
+          linear.push({ a: pins[0], b: pins[1], g: 1 / R_RELAY_COIL, part: p, kind: 'coil' });
+          relayCoils.push(p);
+          linear.push({ a: pins[2], b: pins[3], g: p.state.closed ? 1 / R_CLOSED : G_OPEN, part: p, kind: 'contactNO' });
+          linear.push({ a: pins[2], b: pins[4], g: p.state.closed ? G_OPEN : 1 / R_CLOSED, part: p, kind: 'contactNC' });
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    // leakage to ground keeps floating islands solvable
+    for (let i = 0; i < nNodes; i++) linear.push({ a: i, b: -1, g: G_OPEN, part: null, kind: 'leak' });
+
+    const nV = sources.length;
+    const n = nNodes + nV;
+    let x = new Float64Array(n);
+    let converged = false;
+    let iter = 0;
+    const MAX_ITER = 300;
+
+    const vAt = (idx, vec) => (idx < 0 ? 0 : vec[idx]);
+
+    for (iter = 0; iter < MAX_ITER; iter++) {
+      const A = new Float64Array(n * n);
+      const b = new Float64Array(n);
+      const stampG = (a, c, g) => {
+        if (a >= 0) A[a * n + a] += g;
+        if (c >= 0) A[c * n + c] += g;
+        if (a >= 0 && c >= 0) { A[a * n + c] -= g; A[c * n + a] -= g; }
+      };
+      for (const e of linear) stampG(e.a, e.b, e.g);
+      sources.forEach((s, j) => {
+        const k = nNodes + j;
+        if (s.x >= 0) { A[s.x * n + k] += 1; A[k * n + s.x] += 1; }
+        if (s.m >= 0) { A[s.m * n + k] -= 1; A[k * n + s.m] -= 1; }
+        b[k] = s.V;
+      });
+      // linearised nonlinear devices: i_k(v) = i_k(vL) + sum_j J_kj (v_j - vL_j)
+      for (const d of devices) {
+        if (d.type === 'diode') {
+          const vL = d.lin[0];
+          const jn = junction(vL, d.Is, d.n);
+          const [a, c] = d.pins;
+          const i0 = jn.i, g = jn.g;
+          // currents into the device at anode (a) and cathode (c)
+          // J: [a][a]=g, [a][c]=-g, [c][a]=-g, [c][c]=g ; vL = (vL, 0)
+          const ca = i0 - g * vL;
+          const cc = -i0 + g * vL;
+          if (a >= 0) { A[a * n + a] += g; if (c >= 0) A[a * n + c] -= g; b[a] -= ca; }
+          if (c >= 0) { A[c * n + c] += g; if (a >= 0) A[c * n + a] -= g; b[c] -= cc; }
+        } else if (d.type === 'npn') {
+          const vbeL = d.lin[0], vbcL = d.lin[1];
+          const r = npnCurrents(vbeL, vbcL, NPN_MODEL);
+          const [B, C, E] = d.pins;
+          // terminal voltages at the linearisation point: vE=0, vB=vbe, vC=vbe-vbc
+          const vLB = vbeL, vLC = vbeL - vbcL, vLE = 0;
+          const vL = [vLB, vLC, vLE];
+          // derivatives of currents w.r.t. (vB, vC, vE)
+          const JB = [r.dIBbe + r.dIBbc, -r.dIBbc, -r.dIBbe];
+          const JC = [r.dICbe + r.dICbc, -r.dICbc, -r.dICbe];
+          const JE = [-(JB[0] + JC[0]), -(JB[1] + JC[1]), -(JB[2] + JC[2])];
+          const I0 = [r.iB, r.iC, -(r.iB + r.iC)];
+          const Jm = [JB, JC, JE];
+          const nodes = [B, C, E];
+          for (let row = 0; row < 3; row++) {
+            const nr = nodes[row];
+            if (nr < 0) continue;
+            let cst = I0[row];
+            for (let col = 0; col < 3; col++) cst -= Jm[row][col] * vL[col];
+            for (let col = 0; col < 3; col++) {
+              const nc = nodes[col];
+              if (nc >= 0) A[nr * n + nc] += Jm[row][col];
+            }
+            b[nr] -= cst;
+          }
+        }
+      }
+
+      const xNew = solveDense(A, b, n);
+
+      // update linearisation points with a step limit (junction voltages only)
+      let maxChange = 0;
+      for (const d of devices) {
+        if (d.type === 'diode') {
+          const [a, c] = d.pins;
+          const vd = vAt(a, xNew) - vAt(c, xNew);
+          const delta = vd - d.lin[0];
+          maxChange = Math.max(maxChange, Math.abs(delta));
+          d.lin[0] += Math.max(-LIMIT_STEP, Math.min(LIMIT_STEP, delta));
+        } else if (d.type === 'npn') {
+          const [B, C, E] = d.pins;
+          const vbe = vAt(B, xNew) - vAt(E, xNew);
+          const vbc = vAt(B, xNew) - vAt(C, xNew);
+          const dbe = vbe - d.lin[0], dbc = vbc - d.lin[1];
+          maxChange = Math.max(maxChange, Math.abs(dbe), Math.abs(dbc));
+          d.lin[0] += Math.max(-LIMIT_STEP, Math.min(LIMIT_STEP, dbe));
+          d.lin[1] += Math.max(-LIMIT_STEP, Math.min(LIMIT_STEP, dbc));
+        }
+      }
+      let linChange = 0;
+      for (let i = 0; i < n; i++) linChange = Math.max(linChange, Math.abs(xNew[i] - x[i]));
+      x = xNew;
+      if (devices.length === 0) { converged = true; break; }
+      if (maxChange < 1e-7 && linChange < 1e-6 && iter > 0) { converged = true; break; }
+    }
+    if (!converged) warnings.push({ code: 'noConverge' });
+
+    // 5. relay state update (coil current with hysteresis)
+    let relayChanged = false;
+    for (const p of relayCoils) {
+      const pins = partPins(p).map(nodeOfHole);
+      const Ic = (vAt(pins[0], x) - vAt(pins[1], x)) / R_RELAY_COIL;
+      const was = p.state.closed;
+      if (!was && Ic >= LIMITS.relayPullA) p.state.closed = true;
+      else if (was && Ic < LIMITS.relayReleaseA) p.state.closed = false;
+      if (p.state.closed !== was) relayChanged = true;
+    }
+    if (relayChanged) {
+      // re-solve with the new contact states (bounded recursion: relays settle in one or two passes)
+      if (depth >= 4) { warnings.push({ code: 'relayLoop' }); }
+      else return solveOnce(circuit, depth + 1);
+    }
+
+    // 6. per-part results and burn checks
+    let batteryCurrent = 0;
+    for (const L of linear) {
+      if (L.kind !== 'batt') continue;
+      const I = (vAt(L.a, x) - vAt(L.b, x)) * L.g;
+      // L.a is the external + node; L.b is the internal node: current leaves + into the circuit
+      batteryCurrent += -I;
+    }
+    for (const s of sources) {
+      const i = info.get(s.part.id);
+      i.V = s.V;
+    }
+    for (const L of linear) {
+      const i = L.part ? info.get(L.part.id) : null;
+      if (!i) continue;
+      const va = vAt(L.a, x), vb = vAt(L.b, x);
+      const I = (va - vb) * L.g;
+      if (L.kind === 'batt') {
+        i.I = -I;                       // current leaving the + terminal
+      } else if (L.kind === 'R' || L.kind === 'potA' || L.kind === 'potB') {
+        i.I = I; i.V = va - vb; i.P = I * I * L.R;
+        if (L.kind === 'R' && i.P > LIMITS.resistorMaxW) burnedNow.push(L.part.id);
+        i.on = Math.abs(I) > 1e-6;
+      } else if (L.kind === 'sw') {
+        i.I = I; i.V = va - vb; i.on = L.closed;
+      } else if (L.kind === 'coil') {
+        i.I = I; i.V = va - vb; i.on = Math.abs(I) > LIMITS.relayReleaseA;
+      } else if (L.kind === 'contactNO' || L.kind === 'contactNC') {
+        i.I = I;
+        i.closed = L.part.state && L.part.state.closed;
+      }
+    }
+    for (const d of devices) {
+      const i = info.get(d.part.id);
+      if (d.type === 'diode') {
+        const [a, c] = d.pins;
+        const vd = vAt(a, x) - vAt(c, x);
+        const I = junction(vd, d.Is, d.n).i;
+        i.I = I; i.V = vd; i.P = Math.abs(I * vd);
+        const ledLike = d.part.type === 'led';
+        i.on = I > LIMITS.ledOnA;
+        i.brightness = ledLike ? Math.min(1, Math.max(0, I / LIMITS.ledFullA)) : 0;
+        if (ledLike) {
+          if (I > LIMITS.ledMaxA || vd < LIMITS.ledReverseV) burnedNow.push(d.part.id);
+        } else if (I > LIMITS.diodeMaxA) burnedNow.push(d.part.id);
+      } else if (d.type === 'npn') {
+        const [B, C, E] = d.pins;
+        const vbe = vAt(B, x) - vAt(E, x), vbc = vAt(B, x) - vAt(C, x);
+        const r = npnCurrents(vbe, vbc, NPN_MODEL);
+        i.I = r.iC; i.Ib = r.iB; i.Ic = r.iC; i.V = vAt(C, x) - vAt(E, x);
+        i.on = r.iC > 0.001;
+        i.saturated = i.on && (vAt(C, x) - vAt(E, x)) < 0.3;
+        if (r.iC > LIMITS.transistorMaxA) burnedNow.push(d.part.id);
+      }
+    }
+    for (const p of parts) {
+      if (p.type === 'capacitor') {
+        const i = info.get(p.id);
+        i.I = 0;
+        i.open = true;
+      }
+    }
+    const shorted = batteryCurrent > LIMITS.batteryShortA;
+    if (shorted) warnings.push({ code: 'short' });
+    if (burnedNow.length) warnings.push({ code: 'burn', parts: burnedNow.slice() });
+    // a reversed battery is still a valid circuit, but the LEDs will burn
+    for (const p of parts) if (p.burned) warnings.push({ code: 'damaged', part: p.id });
+
+    return {
+      ok: true,
+      noPower: false,
+      converged: converged,
+      iterations: iter + 1,
+      batteryCurrent: batteryCurrent,
+      shorted: shorted,
+      warnings: warnings,
+      burnedNow: [...new Set(burnedNow)],
+      parts: info,
+      nodeVoltage: function (h) {
+        const s = stripOf(h);
+        if (!s) return null;
+        const root = find(s);
+        if (root === groundRoot) return 0;
+        const idx = nodeIndex.get(root);
+        if (idx === undefined) return null;
+        return x[idx];
+      }
+    };
+  }
+
+  // Apply scenario inputs (defaults for every input, so scenarios are independent),
+  // simulate, and compare the expectations. Burns are real: a burned part stays burned.
+  const INPUT_DEFAULTS = { button: false, switch: false, ldr: 0.5, ntc: 25, pot: 0.5 };
+  function evaluateScenarios(circuit, scenarios) {
+    const results = [];
+    let allPass = true;
+    for (let si = 0; si < scenarios.length; si++) {
+      const sc = scenarios[si];
+      const inputs = Object.assign({}, INPUT_DEFAULTS, sc.in || {});
+      const btn = circuit.parts.filter(p => p.type === 'button');
+      const sw = circuit.parts.filter(p => p.type === 'switch');
+      const ldr = circuit.parts.filter(p => p.type === 'ldr');
+      const ntc = circuit.parts.filter(p => p.type === 'ntc');
+      const pot = circuit.parts.filter(p => p.type === 'pot');
+      btn.forEach(p => { p.props.pressed = !!inputs.button; });
+      sw.forEach(p => { p.props.on = !!inputs.switch; });
+      ldr.forEach(p => { p.props.light = inputs.ldr; });
+      ntc.forEach(p => { p.props.temp = inputs.ntc; });
+      pot.forEach(p => { p.props.pos = inputs.pot; });
+      circuit.parts.filter(p => p.type === 'relay').forEach(p => { p.state = { closed: false }; });
+      const r = simulate(circuit);
+      const checks = [];
+      let pass = true;
+      for (const key of Object.keys(sc.expect || {})) {
+        const want = sc.expect[key];
+        const m = /^(led|relay|npn)(\d*)$/.exec(key);
+        if (!m) continue;
+        const idx = m[2] ? Number(m[2]) - 1 : 0;
+        const type = m[1] === 'npn' ? 'npn' : m[1];
+        const list = circuit.parts.filter(p => p.type === type);
+        const part = list[idx];
+        let got = 'missing';
+        if (part) {
+          const info = r.parts.get(part.id);
+          if (type === 'relay') got = part.state && part.state.closed ? 'closed' : 'open';
+          else got = info && info.on ? 'on' : 'off';
+        }
+        const ok = part && got === want;
+        if (!ok) pass = false;
+        checks.push({ key: key, want: want, got: got, ok: !!ok });
+      }
+      const burnedAny = circuit.parts.filter(p => p.burned).map(p => p.id);
+      if (burnedAny.length) pass = false;
+      if (r.warnings.some(w => w.code === 'short')) pass = false;
+      if (!pass) allPass = false;
+      results.push({ index: si, pass: pass, checks: checks, burned: burnedAny, shorted: r.warnings.some(w => w.code === 'short') });
+    }
+    return { pass: allPass, results: results };
+  }
+
+  // Build a circuit from a compact spec: parts [{type, hole, props, id}], wires [[holeA, holeB]]
+  function buildCircuit(spec) {
+    const c = { parts: [], wires: [] };
+    let n = 0;
+    for (const ps of spec.parts || []) {
+      const chk = checkPlacement(c, ps.type, ps.hole);
+      if (!chk.ok) throw new Error('buildCircuit: ' + ps.type + ' at ' + ps.hole + ' (' + chk.reason + ')');
+      const props = Object.assign({}, TYPES[ps.type].defaults, ps.props || {});
+      c.parts.push({ id: ps.id || ('p' + (++n)), type: ps.type, row: chk.row, col: chk.col, props: props, burned: !!ps.burned });
+    }
+    for (const w of spec.wires || []) {
+      c.wires.push({ id: 'w' + (++n), a: w[0], b: w[1] });
+    }
+    return c;
+  }
+
+  const api = {
+    buildCircuit, evaluateScenarios,
+    VT, COLS, LETTERS: { A: ROWS_A, B: ROWS_B }, RAILS,
+    TYPES, LED_COLORS, RESISTOR_VALUES, BATTERY_VOLTAGES, LIMITS,
+    parseHole, holeId, stripOf, partPins, partRowFor, checkPlacement,
+    simulate, solveDense, junction, npnCurrents
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.CircuitEngine = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Kristian Mario Mišković (TekiDeki)
+ * UI strings. Serbian Cyrillic is generated from Serbian Latin (deterministic transliteration). */
+(function (global) {
+  'use strict';
+
+  const CYR_MAP = {
+    a: 'а', b: 'б', c: 'ц', 'č': 'ч', 'ć': 'ћ', d: 'д', 'đ': 'ђ', e: 'е', f: 'ф', g: 'г', h: 'х',
+    i: 'и', j: 'ј', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', r: 'р', s: 'с', 'š': 'ш',
+    t: 'т', u: 'у', v: 'в', z: 'з', 'ž': 'ж'
+  };
+  const DIGRAPHS = { lj: 'љ', nj: 'њ', 'dž': 'џ' };
+
+  function toCyrillic(text) {
+    return String(text).replace(/(lj|nj|dž|Lj|Nj|Dž|LJ|NJ|DŽ)|[A-Za-zČĆĐŠŽčćđšž]/g, m => {
+      if (m.length === 2 && DIGRAPHS[m.toLowerCase()]) {
+        const low = DIGRAPHS[m.toLowerCase()];
+        return m[0] === m[0].toUpperCase() ? low.toUpperCase() : low;
+      }
+      const lower = m.toLowerCase();
+      const out = CYR_MAP[lower];
+      if (!out) return m;
+      return m === lower ? out : out.toUpperCase();
+    });
+  }
+
+  const ui = {
+    ro: {
+      appTitle: 'Circuit Lab',
+      tagline: 'Simulator de breadboard: pune piese, apasă Simulează.',
+      yes: 'da', no: 'nu', light: 'Lumină', noBurnShort: 'Scurtcircuit la sursă', checkedAt: 'Verificare',
+      progressOf: 'din', challengeDone: 'Reparat', challengeOpen: 'Deschide',
+      tipNone: '', closedWord: 'închis', openWord: 'deschis', recent: 'Ultimele piese',
+      tabLab: 'Laborator', tabLessons: 'Lecții', tabCards: 'Carduri', tabRepair: 'Circuite stricate',
+      simulate: 'Simulează', resimulate: 'Resimulează', reset: 'Resetează', clear: 'Golește', undo: 'Anulează',
+      del: 'Șterge', measure: 'Măsoară', wire: 'Fir', select: 'Selectează', examples: 'Exemple',
+      inspect: 'Piesa selectată', none: 'Nimic selectat', value: 'Valoare', color: 'Culoare',
+      light: 'Lumină', temp: 'Temperatură', pos: 'Poziție cursor', pressed: 'Apăsat', on: 'Pornit', off: 'Oprit',
+      closed: 'Închis', open: 'Deschis', current: 'Curent', voltage: 'Tensiune', power: 'Putere',
+      status: 'Stare', ok: 'Simulare reușită', noPower: 'Adaugă o baterie pe șina de alimentare.',
+      shorted: 'Scurtcircuit: bateria dă peste 1 A. Verifică firele dintre + și -.',
+      noConverge: 'Simularea nu s-a stabilizat. Verifică circuitul.',
+      relayLoop: 'Releul nu s-a stabilizat (contactele se alimentează singure).',
+      burnDone: 'Ai ars: ', damaged: 'Piesă arsă', burnedHint: 'Arsă: scoate-o și pune una nouă.',
+      errOccupied: 'Gaura este deja ocupată.', errOffBoard: 'Piesa iese de pe placă.',
+      errNeedsRail: 'Bateria se pune pe șinele de alimentare (P1 sau P2).',
+      errNoRail: 'Piesele se pun pe rândurile a-j, nu pe șine.', errBadHole: 'Alege o gaură.',
+      wireFrom: 'Alege primul capăt al firului.', wireTo: 'Alege al doilea capăt.', wireCancel: 'Fir anulat.',
+      measureHint: 'Atinge o gaură pentru tensiunea față de masă (-).',
+      measureNone: 'Gaură fără conexiune la circuit.', ground: 'masa (-)',
+      placeHint: 'Atinge o gaură pentru a plasa piesa.', selectHint: 'Atinge o piesă sau un fir. Trage piesa pentru a o muta.',
+      cardsIntro: 'Întrebări cu un singur răspuns corect. Explicația apare după alegere.',
+      cardsScore: 'Scor', cardsNext: 'Următoarea', cardsRestart: 'Reia', cardsCorrect: 'Corect.', cardsWrong: 'Greșit.',
+      cardsDone: 'Ai terminat setul.', cardsCategory: 'Categorie', cardsProgress: 'Întrebarea',
+      lessonsIntro: 'Citește lecția, apoi încarcă circuitul ei în laborator și experimentează.',
+      lessonLoad: 'Încarcă în laborator', lessonPrev: 'Înapoi', lessonNext: 'Înainte', lessonKey: 'Ține minte',
+      lessonNumber: 'Lecția', repairIntro: 'Circuitele sunt stricate. Nu ai indicii: găsește defectele, repară-le și verifică.',
+      repairCheck: 'Verifică', repairPass: 'Circuitul funcționează în toate situațiile.', repairFail: 'Încă nu. Verifică scenariul marcat.',
+      repairReset: 'Refă circuitul stricat', repairNext: 'Circuitul următor', repairDone: 'Ai reparat toate circuitele.',
+      repairGoal: 'Obiectiv', repairScenario: 'Scenariu', repairPressed: 'Apasă butonul',
+      repairStatusOk: 'Reparat', repairStatusTodo: 'De reparat', repairProgress: 'Progres',
+      scenarioWant: 'Se așteaptă', scenarioGot: 'Obținut', noBurn: 'Nicio piesă arsă',
+      inputButton: 'Buton apăsat', inputSwitch: 'Comutator pornit', inputLdr: 'Lumină (LDR)', inputNtc: 'Temperatură (NTC)', inputPot: 'Potențiometru',
+      expLed: 'LED-ul', expRelay: 'Releul', expNpn: 'Tranzistorul', expOn: 'aprins', expOff: 'stins',
+      expClosed: 'închis', expOpen: 'deschis', expSaturated: 'în saturație',
+      donate: 'Susține proiectul', credits: 'Apache-2.0 · TekiDeki', privacy: 'Fără cont, fără urmărire. Totul rulează în browser.',
+      dcNote: 'Simularea este în curent continuu (regim staționar). Condensatorul apare ca circuit deschis.',
+      colorNames: { red: 'roșu', green: 'verde', yellow: 'galben', blue: 'albastru', white: 'alb' },
+      typeNames: {
+        battery: 'Baterie', resistor: 'Rezistor', led: 'LED', diode: 'Diodă', capacitor: 'Condensator',
+        button: 'Buton', switch: 'Comutator', npn: 'Tranzistor NPN', relay: 'Releu', ldr: 'Fotorezistor (LDR)',
+        ntc: 'Termistor NTC', pot: 'Potențiometru'
+      },
+      burnedNames: 'arsă', wireColor: 'Culoare fir'
+    },
+    en: {
+      appTitle: 'Circuit Lab',
+      tagline: 'Breadboard simulator: place parts, press Simulate.',
+      yes: 'yes', no: 'no', light: 'Light', noBurnShort: 'Short circuit at the source', checkedAt: 'Check',
+      progressOf: 'of', challengeDone: 'Fixed', challengeOpen: 'Open',
+      tipNone: '', closedWord: 'closed', openWord: 'open', recent: 'Recent parts',
+      tabLab: 'Lab', tabLessons: 'Lessons', tabCards: 'Cards', tabRepair: 'Broken circuits',
+      simulate: 'Simulate', resimulate: 'Simulate again', reset: 'Reset', clear: 'Clear', undo: 'Undo',
+      del: 'Delete', measure: 'Measure', wire: 'Wire', select: 'Select', examples: 'Examples',
+      inspect: 'Selected part', none: 'Nothing selected', value: 'Value', color: 'Colour',
+      light: 'Light', temp: 'Temperature', pos: 'Wiper position', pressed: 'Pressed', on: 'On', off: 'Off',
+      closed: 'Closed', open: 'Open', current: 'Current', voltage: 'Voltage', power: 'Power',
+      status: 'Status', ok: 'Simulation complete', noPower: 'Add a battery on the power rails.',
+      shorted: 'Short circuit: the battery delivers over 1 A. Check the wires between + and -.',
+      noConverge: 'The simulation did not settle. Check the circuit.',
+      relayLoop: 'The relay did not settle (its contacts keep powering its own coil).',
+      burnDone: 'Burned: ', damaged: 'Burned part', burnedHint: 'Burned: remove it and place a new one.',
+      errOccupied: 'That hole is already taken.', errOffBoard: 'The part would go off the board.',
+      errNeedsRail: 'Batteries go on the power rails (P1 or P2).',
+      errNoRail: 'Parts go on rows a-j, not on the rails.', errBadHole: 'Pick a hole.',
+      wireFrom: 'Pick the first end of the wire.', wireTo: 'Pick the other end.', wireCancel: 'Wire cancelled.',
+      measureHint: 'Tap a hole to read its voltage against ground (-).',
+      measureNone: 'This hole is not connected to the circuit.', ground: 'ground (-)',
+      placeHint: 'Tap a hole to place the part.', selectHint: 'Tap a part or a wire. Drag a part to move it.',
+      cardsIntro: 'Single-answer questions. The explanation appears after you choose.',
+      cardsScore: 'Score', cardsNext: 'Next', cardsRestart: 'Restart', cardsCorrect: 'Correct.', cardsWrong: 'Wrong.',
+      cardsDone: 'You finished the set.', cardsCategory: 'Category', cardsProgress: 'Question',
+      lessonsIntro: 'Read the lesson, then load its circuit into the lab and experiment.',
+      lessonLoad: 'Load into the lab', lessonPrev: 'Back', lessonNext: 'Next', lessonKey: 'Remember',
+      lessonNumber: 'Lesson', repairIntro: 'These circuits are broken. There are no hints: find the faults, fix them and check.',
+      repairCheck: 'Check', repairPass: 'The circuit works in every scenario.', repairFail: 'Not yet. Look at the failing scenario.',
+      repairReset: 'Restore the broken circuit', repairNext: 'Next circuit', repairDone: 'You repaired every circuit.',
+      repairGoal: 'Goal', repairScenario: 'Scenario', repairPressed: 'Press the button',
+      repairStatusOk: 'Fixed', repairStatusTodo: 'To fix', repairProgress: 'Progress',
+      scenarioWant: 'Expected', scenarioGot: 'Got', noBurn: 'No burned parts',
+      inputButton: 'Button pressed', inputSwitch: 'Switch on', inputLdr: 'Light (LDR)', inputNtc: 'Temperature (NTC)', inputPot: 'Potentiometer',
+      expLed: 'The LED', expRelay: 'The relay', expNpn: 'The transistor', expOn: 'on', expOff: 'off',
+      expClosed: 'closed', expOpen: 'open', expSaturated: 'saturated',
+      donate: 'Support the project', credits: 'Apache-2.0 · TekiDeki', privacy: 'No account, no tracking. Everything runs in your browser.',
+      dcNote: 'The simulation is DC steady state. A capacitor shows as an open circuit.',
+      colorNames: { red: 'red', green: 'green', yellow: 'yellow', blue: 'blue', white: 'white' },
+      typeNames: {
+        battery: 'Battery', resistor: 'Resistor', led: 'LED', diode: 'Diode', capacitor: 'Capacitor',
+        button: 'Push button', switch: 'Switch', npn: 'NPN transistor', relay: 'Relay', ldr: 'Photoresistor (LDR)',
+        ntc: 'NTC thermistor', pot: 'Potentiometer'
+      },
+      burnedNames: 'burned', wireColor: 'Wire colour'
+    },
+    'sr-latn': {
+      appTitle: 'Circuit Lab',
+      tagline: 'Simulator breadboard-a: postavi delove, pritisni Simuliraj.',
+      yes: 'da', no: 'ne', light: 'Svetlost', noBurnShort: 'Kratak spoj na izvoru', checkedAt: 'Provera',
+      progressOf: 'od', challengeDone: 'Popravljeno', challengeOpen: 'Otvori',
+      tipNone: '', closedWord: 'zatvoren', openWord: 'otvoren', recent: 'Nedavni delovi',
+      tabLab: 'Laboratorija', tabLessons: 'Lekcije', tabCards: 'Kartice', tabRepair: 'Pokvarena kola',
+      simulate: 'Simuliraj', resimulate: 'Simuliraj ponovo', reset: 'Resetuj', clear: 'Očisti', undo: 'Poništi',
+      del: 'Obriši', measure: 'Meri', wire: 'Žica', select: 'Izaberi', examples: 'Primeri',
+      inspect: 'Izabrani deo', none: 'Ništa nije izabrano', value: 'Vrednost', color: 'Boja',
+      light: 'Svetlost', temp: 'Temperatura', pos: 'Položaj klizača', pressed: 'Pritisnuto', on: 'Uključeno', off: 'Isključeno',
+      closed: 'Zatvoren', open: 'Otvoren', current: 'Struja', voltage: 'Napon', power: 'Snaga',
+      status: 'Stanje', ok: 'Simulacija završena', noPower: 'Dodaj bateriju na šine za napajanje.',
+      shorted: 'Kratak spoj: baterija daje preko 1 A. Proveri žice između + i -.',
+      noConverge: 'Simulacija se nije stabilizovala. Proveri kolo.',
+      relayLoop: 'Relej se nije stabilizovao (kontakti sami napajaju svoj kalem).',
+      burnDone: 'Izgorelo: ', damaged: 'Izgoreo deo', burnedHint: 'Izgoreo: izvadi ga i stavi novi.',
+      errOccupied: 'Ta rupica je već zauzeta.', errOffBoard: 'Deo bi izašao van ploče.',
+      errNeedsRail: 'Baterija ide na šine za napajanje (P1 ili P2).',
+      errNoRail: 'Delovi idu u redove a-j, ne na šine.', errBadHole: 'Izaberi rupicu.',
+      wireFrom: 'Izaberi prvi kraj žice.', wireTo: 'Izaberi drugi kraj.', wireCancel: 'Žica poništena.',
+      measureHint: 'Dodirni rupicu da vidiš napon u odnosu na masu (-).',
+      measureNone: 'Ta rupica nije povezana sa kolom.', ground: 'masa (-)',
+      placeHint: 'Dodirni rupicu da postaviš deo.', selectHint: 'Dodirni deo ili žicu. Prevuci deo da ga pomeriš.',
+      cardsIntro: 'Pitanja sa jednim tačnim odgovorom. Objašnjenje se pojavi kad izabereš.',
+      cardsScore: 'Rezultat', cardsNext: 'Sledeće', cardsRestart: 'Ponovi', cardsCorrect: 'Tačno.', cardsWrong: 'Netačno.',
+      cardsDone: 'Završio si set.', cardsCategory: 'Kategorija', cardsProgress: 'Pitanje',
+      lessonsIntro: 'Pročitaj lekciju, pa učitaj njeno kolo u laboratoriju i isprobaj.',
+      lessonLoad: 'Učitaj u laboratoriju', lessonPrev: 'Nazad', lessonNext: 'Napred', lessonKey: 'Zapamti',
+      lessonNumber: 'Lekcija', repairIntro: 'Ova kola su pokvarena. Nema nagoveštaja: nađi kvarove, popravi ih i proveri.',
+      repairCheck: 'Proveri', repairPass: 'Kolo radi u svim scenarijima.', repairFail: 'Još nije. Pogledaj scenario koji ne prolazi.',
+      repairReset: 'Vrati pokvareno kolo', repairNext: 'Sledeće kolo', repairDone: 'Popravio si sva kola.',
+      repairGoal: 'Cilj', repairScenario: 'Scenario', repairPressed: 'Pritisni taster',
+      repairStatusOk: 'Popravljeno', repairStatusTodo: 'Za popravku', repairProgress: 'Napredak',
+      scenarioWant: 'Očekivano', scenarioGot: 'Dobijeno', noBurn: 'Nijedan deo nije izgoreo',
+      inputButton: 'Taster pritisnut', inputSwitch: 'Prekidač uključen', inputLdr: 'Svetlost (LDR)', inputNtc: 'Temperatura (NTC)', inputPot: 'Potenciometar',
+      expLed: 'LED', expRelay: 'Relej', expNpn: 'Tranzistor', expOn: 'svetli', expOff: 'ne svetli',
+      expClosed: 'zatvoren', expOpen: 'otvoren', expSaturated: 'u zasićenju',
+      donate: 'Podrži projekat', credits: 'Apache-2.0 · TekiDeki', privacy: 'Bez naloga, bez praćenja. Sve radi u pregledaču.',
+      dcNote: 'Simulacija je jednosmerna struja (stacionarno stanje). Kondenzator je prekid kola.',
+      colorNames: { red: 'crvena', green: 'zelena', yellow: 'žuta', blue: 'plava', white: 'bela' },
+      typeNames: {
+        battery: 'Baterija', resistor: 'Otpornik', led: 'LED', diode: 'Dioda', capacitor: 'Kondenzator',
+        button: 'Taster', switch: 'Prekidač', npn: 'NPN tranzistor', relay: 'Relej', ldr: 'Fotootpornik (LDR)',
+        ntc: 'NTC termistor', pot: 'Potenciometar'
+      },
+      burnedNames: 'izgoreo', wireColor: 'Boja žice'
+    }
+  };
+
+  // Build the Cyrillic table from the Latin one (same keys, same structure).
+  function cyrilize(obj) {
+    if (typeof obj === 'string') return toCyrillic(obj);
+    if (Array.isArray(obj)) return obj.map(cyrilize);
+    if (obj && typeof obj === 'object') {
+      const out = {};
+      for (const k of Object.keys(obj)) out[k] = cyrilize(obj[k]);
+      return out;
+    }
+    return obj;
+  }
+  ui['sr-cyrl'] = cyrilize(ui['sr-latn']);
+
+  const api = { ui, toCyrillic };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.CircuitContentUI = api;
+  global.CircuitI18N = { ui: ui, toCyrillic: toCyrillic };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Kristian Mario Mišković (TekiDeki)
+ * Ten lessons. Each one has a lab circuit that loads with one tap. Serbian Cyrillic is generated. */
+(function (global) {
+  'use strict';
+
+  const LESSONS = [
+    {
+      id: 'breadboard',
+      title: { ro: 'Placa de test (breadboard)', en: 'The breadboard', sr: 'Proto-ploča (breadboard)' },
+      body: {
+        ro: [
+          'Pe o placă de test nu lipești nimic. Introduci piesele în găuri, iar găurile se leagă între ele după un tipar fix.',
+          'Rândurile a-e dintr-o coloană sunt conectate între ele. La fel și f-j. Între e și f este canalul din mijloc, care le desparte. Șinele de pe margini (P1 și P2) sunt pentru alimentare: toate găurile dintr-un rând de șină sunt conectate pe toată lungimea.'
+        ],
+        en: [
+          'On a breadboard you do not solder anything. You push the parts into holes, and the holes are joined by a fixed pattern.',
+          'Rows a-e in one column are joined together, and so are f-j. The centre channel separates e from f. The rails along the edges (P1 and P2) are for power: every hole in one rail row is connected along its whole length.'
+        ],
+        sr: [
+          'Na proto-ploči ništa ne lemiš. Delove ubodeš u rupice, a rupice su povezane po fiksnom obrascu.',
+          'Redovi a-e u istoj koloni povezani su međusobno, isto kao i f-j. Srednji kanal razdvaja e i f. Šine uz ivice (P1 i P2) služe za napajanje: sve rupice u jednom redu šine povezane su po celoj dužini.'
+        ]
+      },
+      key: {
+        ro: 'Două găuri din aceeași coloană (a-e sau f-j) sunt conectate. Două găuri din coloane diferite nu sunt.',
+        en: 'Two holes in the same column (a-e or f-j) are connected. Holes in different columns are not.',
+        sr: 'Dve rupice u istoj koloni (a-e ili f-j) su povezane. Rupice u različitim kolonama nisu.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 9 } },
+          { type: 'resistor', hole: 'e3', props: { R: 330 } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'P1-7']]
+      }
+    },
+    {
+      id: 'ohm',
+      title: { ro: 'Tensiune, curent și rezistență', en: 'Voltage, current and resistance', sr: 'Napon, struja i otpor' },
+      body: {
+        ro: [
+          'Tensiunea (V, în volți) împinge curentul. Curentul (I, în amperi) este cât de mult trece prin circuit. Rezistența (R, în ohmi) se opune curentului.',
+          'Legea lui Ohm spune: U = I × R. Pe un rezistor de 470 Ω la 9 V, curentul este 9 / 470, adică aproximativ 19 mA. Puterea disipată este P = U × I, și rezistorul trebuie să o suporte (de obicei 0,25 W).'
+        ],
+        en: [
+          'Voltage (V, in volts) pushes the current. Current (I, in amperes) is how much flows through the circuit. Resistance (R, in ohms) opposes the current.',
+          'Ohm\'s law says: U = I × R. Across a 470 Ω resistor at 9 V the current is 9 / 470, about 19 mA. The power dissipated is P = U × I, and the resistor has to survive it (typically 0.25 W).'
+        ],
+        sr: [
+          'Napon (V, u voltima) tera struju. Struja (I, u amperima) je koliko protiče kroz kolo. Otpor (R, u omima) se suprotstavlja struji.',
+          'Omov zakon kaže: U = I × R. Na otporniku od 470 Ω pri 9 V struja je 9 / 470, oko 19 mA. Snaga koja se troši je P = U × I, a otpornik je mora izdržati (obično 0,25 W).'
+        ]
+      },
+      key: {
+        ro: 'U = I × R. Un rezistor de 100 Ω la 9 V consumă 0,81 W și arde.',
+        en: 'U = I × R. A 100 Ω resistor across 9 V dissipates 0.81 W and burns.',
+        sr: 'U = I × R. Otpornik od 100 Ω na 9 V troši 0,81 W i izgoreće.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 9 } },
+          { type: 'resistor', hole: 'e3', props: { R: 470 } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'P1-7']]
+      }
+    },
+    {
+      id: 'led',
+      title: { ro: 'LED-ul și rezistența de limitare', en: 'The LED and its current limiting resistor', sr: 'LED i otpornik za ograničenje struje' },
+      body: {
+        ro: [
+          'LED-ul este o diodă: lasă curentul să treacă într-un singur sens, de la anod (+) la catod (-). Are o cădere de tensiune aproape constantă, de circa 1,9 V pentru roșu și 3 V pentru albastru sau alb.',
+          'Odată ce tensiunea depășește această cădere, curentul crește foarte repede. Fără rezistor, LED-ul trage zeci de mA și se arde. Cu rezistorul în serie, curentul devine (Vsursă - Vled) / R. Pentru 5 V și 220 Ω ajungi la circa 14 mA.'
+        ],
+        en: [
+          'An LED is a diode: it lets current pass in one direction only, from anode (+) to cathode (-). Its forward voltage is almost constant, about 1.9 V for red and about 3 V for blue or white.',
+          'Once the voltage passes that drop, the current rises very quickly. Without a resistor the LED draws tens of mA and burns. With a resistor in series the current is (Vsupply - Vled) / R. At 5 V and 220 Ω you get about 14 mA.'
+        ],
+        sr: [
+          'LED je dioda: propušta struju u jednom smeru, od anode (+) ka katodi (-). Njegov napon u propusnom smeru je skoro konstantan: oko 1,9 V za crvenu, a oko 3 V za plavu ili belu.',
+          'Kad napon pređe taj pad, struja naglo raste. Bez otpornika LED povlači desetine mA i izgoreće. Sa otpornikom u redu, struja je (Unapajanje - Uled) / R. Za 5 V i 220 Ω dobijaš oko 14 mA.'
+        ]
+      },
+      key: {
+        ro: 'Întotdeauna un rezistor în serie cu LED-ul. Un LED pe 5 V direct se arde.',
+        en: 'Always put a resistor in series with an LED. An LED straight across 5 V burns.',
+        sr: 'Uvek stavi otpornik u red sa LED-om. LED direktno na 5 V izgoreće.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'e3', props: { R: 220 } },
+          { type: 'led', hole: 'e8', props: { color: 'red' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e8'], ['e9', 'P1-9']]
+      }
+    },
+    {
+      id: 'divider',
+      title: { ro: 'Divizorul de tensiune', en: 'The voltage divider', sr: 'Razdelnik napona' },
+      body: {
+        ro: [
+          'Două rezistoare în serie împart tensiunea. Curentul este același prin ambele, dar tensiunea pe fiecare este proporțională cu rezistența sa.',
+          'Tensiunea din mijloc este Uieșire = Usursă × R2 / (R1 + R2). Cu două rezistoare egale de 1 kΩ, pe 9 V obții 4,5 V. Divizoarele sunt folosite la citirea senzorilor, unde una dintre rezistențe se schimbă.'
+        ],
+        en: [
+          'Two resistors in series divide the voltage. The same current flows through both, but the voltage across each is proportional to its resistance.',
+          'The middle voltage is Vout = Vsupply × R2 / (R1 + R2). With two equal 1 kΩ resistors on 9 V you get 4.5 V. Dividers are used to read sensors, where one of the resistors changes.'
+        ],
+        sr: [
+          'Dva otpornika u redu dele napon. Kroz oba protiče ista struja, ali je napon na svakom srazmeran njegovom otporu.',
+          'Napon u sredini je Uizlaz = Unapajanje × R2 / (R1 + R2). Sa dva jednaka otpornika od 1 kΩ na 9 V dobijaš 4,5 V. Razdelnici se koriste za očitavanje senzora, gde se jedan otpornik menja.'
+        ]
+      },
+      key: {
+        ro: 'Tensiunea din mijloc depinde de raportul rezistențelor, nu de valorile absolute.',
+        en: 'The middle voltage depends on the ratio of the resistors, not on their absolute values.',
+        sr: 'Napon u sredini zavisi od odnosa otpornika, a ne od apsolutnih vrednosti.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 9 } },
+          { type: 'resistor', hole: 'e3', props: { R: 1000 } },
+          { type: 'resistor', hole: 'e8', props: { R: 1000 } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e8'], ['e12', 'P1-12']]
+      }
+    },
+    {
+      id: 'button',
+      title: { ro: 'Butonul și comutatorul', en: 'Push buttons and switches', sr: 'Taster i prekidač' },
+      body: {
+        ro: [
+          'Butonul (taster) face contact doar cât îl ții apăsat. Comutatorul rămâne în poziția în care l-ai lăsat. Din punct de vedere electric, amândoi închid sau deschid un drum pentru curent.',
+          'Un buton lasat în aer nu este nici pe 0, nici pe 1. Pentru un semnal sigur se folosește un rezistor de tragere (pull-down) spre masă.'
+        ],
+        en: [
+          'A push button only makes contact while you hold it down. A switch stays in the position you left it. Electrically both open or close a path for the current.',
+          'A floating input is neither clearly low nor high. For a reliable signal, use a pull-down resistor to ground.'
+        ],
+        sr: [
+          'Taster ostvaruje kontakt samo dok ga držiš pritisnutog. Prekidač ostaje u položaju u kom ga ostaviš. Električno oboje zatvaraju ili otvaraju put struji.',
+          'Ulaz koji visi u vazduhu nije ni jasno nizak ni jasno visok. Za pouzdan signal koristi se pull-down otpornik prema masi.'
+        ]
+      },
+      key: {
+        ro: 'Butonul închide circuitul doar cât este apăsat. Un rezistor de tragere fixează semnalul.',
+        en: 'A push button closes the circuit only while pressed. A pull-down resistor fixes the signal.',
+        sr: 'Taster zatvara kolo samo dok je pritisnut. Pull-down otpornik fiksira signal.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'e3', props: { R: 330 } },
+          { type: 'button', hole: 'e8' },
+          { type: 'led', hole: 'e11', props: { color: 'green' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e8'], ['e10', 'e11'], ['e12', 'P1-12']]
+      }
+    },
+    {
+      id: 'transistor',
+      title: { ro: 'Tranzistorul ca întrerupător', en: 'The transistor as a switch', sr: 'Tranzistor kao prekidač' },
+      body: {
+        ro: [
+          'Tranzistorul NPN are trei picioare: baza (B), colectorul (C) și emitorul (E). Un curent mic prin bază permite un curent mult mai mare de la colector la emitor.',
+          'Raportul dintre ele se numește câștig (β, de obicei 100 până la 300). Când tranzistorul este în saturație, funcționează ca un întrerupător închis. Între bază și emitor trebuie să existe circa 0,7 V, iar în bază pui un rezistor, ca să limitezi curentul.'
+        ],
+        en: [
+          'An NPN transistor has three legs: base (B), collector (C) and emitter (E). A small current into the base allows a much larger current from collector to emitter.',
+          'The ratio is the gain (β, usually 100 to 300). When the transistor is saturated it behaves like a closed switch. About 0.7 V must be present between base and emitter, and a resistor in the base limits the current.'
+        ],
+        sr: [
+          'NPN tranzistor ima tri noge: bazu (B), kolektor (C) i emitor (E). Mala struja kroz bazu omogućava mnogo veću struju od kolektora ka emitoru.',
+          'Odnos je pojačanje (β, obično 100 do 300). Kad je tranzistor u zasićenju, radi kao zatvoren prekidač. Između baze i emitora mora biti oko 0,7 V, a otpornik u bazi ograničava struju.'
+        ]
+      },
+      key: {
+        ro: 'Baza primește un curent mic, colectorul comută un curent mare. Nu lega sarcina direct la bază.',
+        en: 'The base gets a small current, the collector switches a large one. Never connect the load straight to the base.',
+        sr: 'Baza dobija malu struju, a kolektor prebacuje veliku. Nikad ne vezuj teret direktno na bazu.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'b3', props: { R: 470 } },
+          { type: 'led', hole: 'b8', props: { color: 'red' } },
+          { type: 'npn', hole: 'j10' },
+          { type: 'button', hole: 'e20' },
+          { type: 'resistor', hole: 'e24', props: { R: 10000 } },
+          { type: 'resistor', hole: 'b13', props: { R: 100000 } }
+        ],
+        wires: [
+          ['P1+3', 'b3'], ['b7', 'b8'], ['b9', 'j11'], ['j12', 'P1-12'],
+          ['P1+20', 'e20'], ['e22', 'e24'], ['e28', 'j10'], ['b13', 'j10'], ['b17', 'P1-17']
+        ]
+      }
+    },
+    {
+      id: 'relay',
+      title: { ro: 'Releul', en: 'The relay', sr: 'Relej' },
+      body: {
+        ro: [
+          'Releul este un electromagnet care închide sau deschide contacte mecanice. Bobina (cele două picioare de sus) se alimentează separat de contactele (COM, NO, NC).',
+          'COM este comunul, NO se închide când bobina este alimentată, iar NC se deschide. Pentru acest releu, bobina trage când curentul depășește circa 30 mA, adică aproximativ 2,1 V pe 70 Ω. Sub această valoare contactele rămân deschise. Releul separă două circuite: un semnal mic poate comanda un circuit mare.'
+        ],
+        en: [
+          'A relay is an electromagnet that opens or closes mechanical contacts. The coil (the two top pins) is powered separately from the contacts (COM, NO, NC).',
+          'COM is the common pin, NO closes when the coil is energised, and NC opens. For this relay the coil pulls in above about 30 mA, which is about 2.1 V across 70 Ω. Below that the contacts stay open. A relay separates two circuits: a small signal can switch a large load.'
+        ],
+        sr: [
+          'Relej je elektromagnet koji otvara ili zatvara mehaničke kontakte. Kalem (dve gornje noge) napaja se odvojeno od kontakata (COM, NO, NC).',
+          'COM je zajednički, NO se zatvara kad je kalem pod naponom, a NC se otvara. Za ovaj relej kalem privlači iznad oko 30 mA, to jest oko 2,1 V na 70 Ω. Ispod toga kontakti ostaju otvoreni. Relej razdvaja dva kola: mali signal može da uključi veliki teret.'
+        ]
+      },
+      key: {
+        ro: 'Releul separă circuitul de comandă de cel de putere. Diodă de protecție (flyback) la bobine mari.',
+        en: 'A relay separates the control circuit from the power circuit. Use a flyback diode across large coils.',
+        sr: 'Relej razdvaja upravljačko kolo od strujnog. Za veće kalemove koristi zaštitnu (flyback) diodu.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'relay', hole: 'e10' },
+          { type: 'resistor', hole: 'b15', props: { R: 220 } },
+          { type: 'led', hole: 'b20', props: { color: 'green' } }
+        ],
+        wires: [
+          ['P1+10', 'e10'], ['e11', 'P1-11'], ['P1+12', 'e12'],
+          ['e13', 'b15'], ['b19', 'b20'], ['b21', 'P1-21']
+        ]
+      }
+    },
+    {
+      id: 'ldr',
+      title: { ro: 'Fotorezistorul (LDR)', en: 'The light-dependent resistor (LDR)', sr: 'Fotootpornik (LDR)' },
+      body: {
+        ro: [
+          'Fotorezistorul își schimbă rezistența în funcție de lumină: la întuneric are sute de kΩ sau chiar MΩ, la lumină puternică câțiva kΩ sau mai puțin.',
+          'Pus într-un divizor de tensiune, LDR-ul transformă lumina într-o tensiune. Tensiunea din mijloc crește sau scade cu lumina, iar un circuit (de exemplu un tranzistor) poate reacționa la ea.'
+        ],
+        en: [
+          'A photoresistor changes its resistance with light: in the dark it can be hundreds of kΩ or MΩ, in strong light a few kΩ or less.',
+          'Placed in a voltage divider, the LDR turns light into a voltage. The middle voltage rises or falls with the light, and a circuit (for example a transistor) can react to it.'
+        ],
+        sr: [
+          'Fotootpornik menja otpor u zavisnosti od svetlosti: u mraku može biti stotine kΩ ili MΩ, a na jakoj svetlosti nekoliko kΩ ili manje.',
+          'Stavljen u razdelnik napona, LDR pretvara svetlost u napon. Napon u sredini raste ili opada sa svetlošću, a kolo (na primer tranzistor) može da reaguje na njega.'
+        ]
+      },
+      key: {
+        ro: 'Lumină mai multă, rezistență mai mică. Ajustează cursorul "Lumină" și vezi tensiunea din mijloc.',
+        en: 'More light, less resistance. Move the Light slider and watch the middle voltage.',
+        sr: 'Više svetlosti, manji otpor. Pomeri klizač "Svetlost" i gledaj napon u sredini.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'ldr', hole: 'e3', props: { light: 0.2 } },
+          { type: 'resistor', hole: 'e6', props: { R: 10000 } }
+        ],
+        wires: [['P1+3', 'e3'], ['e5', 'e6'], ['e10', 'P1-10']]
+      }
+    },
+    {
+      id: 'pot',
+      title: { ro: 'Potențiometrul și termistorul NTC', en: 'The potentiometer and the NTC thermistor', sr: 'Potenciometar i NTC termistor' },
+      body: {
+        ro: [
+          'Potențiometrul are trei picioare: două capete fixe și un cursor (wiper) mobil. Cursorul împarte rezistența totală în două părți, deci este un divizor de tensiune reglabil. Îl folosești pentru volum, luminozitate sau setări.',
+          'Termistorul NTC își scade rezistența când se încălzește. Pentru B = 3950 și 25 °C, valoarea este de 10 kΩ; la 50 °C scade la circa 3,6 kΩ.'
+        ],
+        en: [
+          'A potentiometer has three legs: two fixed ends and a moving wiper. The wiper splits the total resistance into two parts, so it is an adjustable voltage divider. You use it for volume, brightness or settings.',
+          'An NTC thermistor lowers its resistance when it heats up. For B = 3950 and 25 °C the value is 10 kΩ; at 50 °C it drops to about 3.6 kΩ.'
+        ],
+        sr: [
+          'Potenciometar ima tri noge: dva fiksna kraja i pokretni klizač (wiper). Klizač deli ukupni otpor na dva dela, pa je to podesivi razdelnik napona. Koristi se za jačinu zvuka, svetlinu ili podešavanja.',
+          'NTC termistor smanjuje otpor kad se zagreje. Za B = 3950 i 25 °C vrednost je 10 kΩ; na 50 °C pada na oko 3,6 kΩ.'
+        ]
+      },
+      key: {
+        ro: 'Potențiometrul este un divizor reglabil. Termistorul NTC scade rezistența la căldură.',
+        en: 'A potentiometer is an adjustable divider. An NTC thermistor loses resistance when hot.',
+        sr: 'Potenciometar je podesivi razdelnik. NTC termistor gubi otpor kad se zagreje.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'pot', hole: 'e3', props: { pos: 0.8 } },
+          { type: 'resistor', hole: 'e8', props: { R: 1000 } },
+          { type: 'led', hole: 'e13', props: { color: 'yellow' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e5', 'P1-5'], ['e4', 'e8'], ['e12', 'e13'], ['e14', 'P1-14']]
+      }
+    },
+    {
+      id: 'capacitor',
+      title: { ro: 'Condensatorul și siguranța', en: 'The capacitor and safe building', sr: 'Kondenzator i bezbedna gradnja' },
+      body: {
+        ro: [
+          'Condensatorul stochează sarcină electrică. În curent continuu, în regim stabil, nu lasă curentul să treacă: pentru el este un circuit deschis. Se folosește la netezirea tensiunii, la filtre și la temporizări (în timp, se încarcă și se descarcă).',
+          'Regulile de siguranță: verifică polaritatea LED-urilor și a condensatoarelor electrolitice, nu conecta niciodată + direct la - (scurtcircuit), și nu depăși puterea admisă a rezistoarelor.'
+        ],
+        en: [
+          'A capacitor stores electric charge. In steady DC it blocks current, so it acts as an open circuit. It is used to smooth voltage, in filters and for timing (it charges and discharges over time).',
+          'Safety rules: check the polarity of LEDs and electrolytic capacitors, never connect + straight to - (a short circuit), and never exceed the power rating of a resistor.'
+        ],
+        sr: [
+          'Kondenzator čuva električno punjenje. U stacionarnoj jednosmernoj struji ne propušta struju: za njega je to prekid kola. Koristi se za glačanje napona, u filterima i za vremenska kola (puni se i prazni tokom vremena).',
+          'Pravila bezbednosti: proveri polaritet LED-ova i elektrolitskih kondenzatora, nikad ne spajaj + direktno na - (kratak spoj), i ne prelazi dozvoljenu snagu otpornika.'
+        ]
+      },
+      key: {
+        ro: 'Condensatorul blochează curentul continuu. Un scurtcircuit + la - arde sursa sau firele.',
+        en: 'A capacitor blocks steady DC. A short from + to - overheats the source or the wires.',
+        sr: 'Kondenzator blokira jednosmernu struju u stanju mirovanja. Kratak spoj + na - pregreva izvor ili žice.'
+      },
+      preset: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'capacitor', hole: 'e3', props: { uF: 100 } },
+          { type: 'resistor', hole: 'e7', props: { R: 220 } },
+          { type: 'led', hole: 'e12', props: { color: 'red' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e5', 'e7'], ['e11', 'e12'], ['e13', 'P1-13']]
+      }
+    }
+  ];
+
+  const api = { LESSONS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.CircuitLessons = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Kristian Mario Mišković (TekiDeki)
+ * 60 question cards (see the count check in tests). Each card has one correct answer (index a). Serbian Cyrillic is generated. */
+(function (global) {
+  'use strict';
+
+  const CATEGORIES = ['basics', 'ohm', 'led', 'switches', 'relays', 'sensors', 'safety'];
+
+  // c: category, a: index of the correct answer, each language: q (question), o (4 options), e (explanation)
+  const CARDS = [
+    // basics (1-9)
+    { c: 'basics', a: 1,
+      ro: { q: 'Ce este tensiunea?', o: ['Cantitatea de curent care trece printr-un fir', 'Diferența de potențial care împinge curentul', 'Rezistența unui conductor', 'Puterea consumată de un circuit'], e: 'Tensiunea (V) este diferența de potențial dintre două puncte. Este forța care împinge electronii.' },
+      en: { q: 'What is voltage?', o: ['The amount of current flowing through a wire', 'The potential difference that pushes current', 'The resistance of a conductor', 'The power used by a circuit'], e: 'Voltage (V) is the potential difference between two points. It is the push that moves the electrons.' },
+      sr: { q: 'Šta je napon?', o: ['Količina struje koja prolazi kroz žicu', 'Razlika potencijala koja tera struju', 'Otpor provodnika', 'Snaga koju troši kolo'], e: 'Napon (V) je razlika potencijala između dve tačke. To je sila koja tera elektrone.' } },
+    { c: 'basics', a: 2,
+      ro: { q: 'Ce unitate se folosește pentru curent?', o: ['Volt', 'Ohm', 'Amper', 'Watt'], e: 'Curentul se măsoară în amperi (A). Volt este pentru tensiune, ohm pentru rezistență, watt pentru putere.' },
+      en: { q: 'Which unit measures current?', o: ['Volt', 'Ohm', 'Ampere', 'Watt'], e: 'Current is measured in amperes (A). Volts are for voltage, ohms for resistance, watts for power.' },
+      sr: { q: 'Koja jedinica meri struju?', o: ['Volt', 'Om', 'Amper', 'Vat'], e: 'Struja se meri u amperima (A). Volt je za napon, om za otpor, vat za snagu.' } },
+    { c: 'basics', a: 0,
+      ro: { q: 'Ce înseamnă masa (-) în circuit?', o: ['Punctul de referință, cu tensiune 0 V', 'Cel mai pozitiv punct', 'Un fir fără curent', 'Un tip de rezistor'], e: 'Masa este punctul de referință. Tensiunile din circuit se măsoară față de ea.' },
+      en: { q: 'What does ground (-) mean in a circuit?', o: ['The reference point, at 0 V', 'The most positive point', 'A wire with no current', 'A type of resistor'], e: 'Ground is the reference point. Voltages in the circuit are measured against it.' },
+      sr: { q: 'Šta znači masa (-) u kolu?', o: ['Referentna tačka, na 0 V', 'Najpozitivnija tačka', 'Žica bez struje', 'Vrsta otpornika'], e: 'Masa je referentna tačka. Naponi u kolu mere se u odnosu na nju.' } },
+    { c: 'basics', a: 3,
+      ro: { q: 'Două găuri de pe aceeași șină de alimentare sunt:', o: ['Izolate una de alta', 'Conectate doar dacă au același număr', 'Conectate doar la baterie', 'Conectate, pe toată lungimea șinei'], e: 'Șinele de alimentare sunt continue. Toate găurile unei șine sunt la același potențial.' },
+      en: { q: 'Two holes on the same power rail are:', o: ['Isolated from each other', 'Connected only if they have the same number', 'Connected only to the battery', 'Connected along the whole rail'], e: 'Power rails are continuous. Every hole on one rail is at the same potential.' },
+      sr: { q: 'Dve rupice na istoj šini za napajanje su:', o: ['Izolovane jedna od druge', 'Povezane samo ako imaju isti broj', 'Povezane samo sa baterijom', 'Povezane po celoj dužini šine'], e: 'Šine za napajanje su neprekidne. Sve rupice jedne šine su na istom potencijalu.' } },
+    { c: 'basics', a: 0,
+      ro: { q: 'Două găuri din coloana 5, rândurile a și c, sunt:', o: ['Conectate', 'Izolate', 'Conectate doar dacă sunt pe șină', 'În coloane diferite'], e: 'Rândurile a-e din aceeași coloană sunt conectate între ele.' },
+      en: { q: 'Two holes in column 5, rows a and c, are:', o: ['Connected', 'Isolated', 'Connected only on a rail', 'In different columns'], e: 'Rows a-e in the same column are connected to each other.' },
+      sr: { q: 'Dve rupice u koloni 5, redovi a i c, su:', o: ['Povezane', 'Izolovane', 'Povezane samo na šini', 'U različitim kolonama'], e: 'Redovi a-e u istoj koloni su povezani međusobno.' } },
+    { c: 'basics', a: 2,
+      ro: { q: 'Două găuri din coloana 5, rândurile a și f, sunt:', o: ['Conectate', 'Conectate pe șină', 'Izolate, pentru că a-e și f-j sunt separate de canal', 'Scurtcircuitate'], e: 'Canalul din mijloc separă grupurile a-e și f-j. Ca să le legi, folosești un fir.' },
+      en: { q: 'Two holes in column 5, rows a and f, are:', o: ['Connected', 'Connected on a rail', 'Isolated, because the centre channel separates a-e and f-j', 'Short-circuited'], e: 'The centre channel separates the a-e and f-j groups. To link them you need a wire.' },
+      sr: { q: 'Dve rupice u koloni 5, redovi a i f, su:', o: ['Povezane', 'Povezane na šini', 'Izolovane, jer srednji kanal razdvaja a-e i f-j', 'U kratkom spoju'], e: 'Srednji kanal razdvaja grupe a-e i f-j. Da ih spojiš, treba ti žica.' } },
+    { c: 'basics', a: 1,
+      ro: { q: 'Ce se întâmplă dacă conectezi direct + la - printr-un fir?', o: ['Nimic, firul e doar un fir', 'Scurtcircuit: curentul crește foarte mult și sursa se supraîncălzește', 'Circuitul se face mai eficient', 'Tensiunea crește'], e: 'Firul are rezistență aproape zero. Curentul este limitat doar de rezistența internă a bateriei, și de aceea trebuie evitat.' },
+      en: { q: 'What happens if you connect + straight to - with a wire?', o: ['Nothing, it is just a wire', 'A short circuit: the current rises a lot and the source overheats', 'The circuit gets more efficient', 'The voltage rises'], e: 'A wire has almost zero resistance. Only the battery\'s internal resistance limits the current, so this must be avoided.' },
+      sr: { q: 'Šta se dešava ako žicom direktno spojiš + na -?', o: ['Ništa, to je samo žica', 'Kratak spoj: struja naglo raste i izvor se pregreva', 'Kolo postaje efikasnije', 'Napon raste'], e: 'Žica ima skoro nulti otpor. Struju ograničava samo unutrašnji otpor baterije, zato se to mora izbegavati.' } },
+    { c: 'basics', a: 3,
+      ro: { q: 'Ce măsori cu multimetrul pus în paralel cu o piesă?', o: ['Curentul', 'Rezistența internă a sursei', 'Puterea în wați', 'Tensiunea pe piesă'], e: 'Voltmetrul se pune în paralel. Ampermetrul se pune în serie, ca să treacă prin el același curent.' },
+      en: { q: 'What does a multimeter measure when connected in parallel with a part?', o: ['Current', 'The internal resistance of the source', 'Power in watts', 'The voltage across the part'], e: 'A voltmeter is connected in parallel. An ammeter is connected in series so the same current passes through it.' },
+      sr: { q: 'Šta multimetar meri kad je vezan paralelno sa delom?', o: ['Struju', 'Unutrašnji otpor izvora', 'Snagu u vatima', 'Napon na delu'], e: 'Voltmetar se veže paralelno. Ampermetar se veže u red, da kroz njega prolazi ista struja.' } },
+    { c: 'basics', a: 0,
+      ro: { q: 'Ce înseamnă "în serie"?', o: ['Piesele sunt una după alta, prin aceeași cale', 'Piesele sunt una lângă alta, pe aceeași tensiune', 'Piesele sunt în cerc închis', 'Piesele sunt conectate la aceeași gaură'], e: 'În serie, același curent trece prin toate piesele. În paralel, toate au aceeași tensiune.' },
+      en: { q: 'What does "in series" mean?', o: ['The parts follow one another on the same path', 'The parts sit side by side on the same voltage', 'The parts form a closed loop', 'The parts share one hole'], e: 'In series, the same current flows through every part. In parallel, every part has the same voltage.' },
+      sr: { q: 'Šta znači "u redu" (serijski)?', o: ['Delovi idu jedan za drugim, istim putem', 'Delovi stoje jedan pored drugog, na istom naponu', 'Delovi čine zatvorenu petlju', 'Delovi dele jednu rupicu'], e: 'U redu, kroz sve delove prolazi ista struja. Paralelno, svi delovi imaju isti napon.' } },
+
+    // ohm (10-19)
+    { c: 'ohm', a: 2,
+      ro: { q: 'Care este formula legii lui Ohm?', o: ['P = U / I', 'I = U × R', 'U = I × R', 'R = U × I'], e: 'U = I × R. Tensiunea este egală cu curentul înmulțit cu rezistența.' },
+      en: { q: 'What is Ohm\'s law?', o: ['P = U / I', 'I = U × R', 'U = I × R', 'R = U × I'], e: 'U = I × R. Voltage equals current times resistance.' },
+      sr: { q: 'Kako glasi Omov zakon?', o: ['P = U / I', 'I = U × R', 'U = I × R', 'R = U × I'], e: 'U = I × R. Napon je jednak struji puta otpor.' } },
+    { c: 'ohm', a: 0,
+      ro: { q: 'Două rezistoare de 1 kΩ în serie au rezistența totală de:', o: ['2 kΩ', '500 Ω', '1 kΩ', '1 MΩ'], e: 'În serie, rezistențele se adună: 1 kΩ + 1 kΩ = 2 kΩ.' },
+      en: { q: 'Two 1 kΩ resistors in series have a total resistance of:', o: ['2 kΩ', '500 Ω', '1 kΩ', '1 MΩ'], e: 'In series, resistances add: 1 kΩ + 1 kΩ = 2 kΩ.' },
+      sr: { q: 'Dva otpornika od 1 kΩ vezana u red imaju ukupan otpor:', o: ['2 kΩ', '500 Ω', '1 kΩ', '1 MΩ'], e: 'U redu se otpori sabiraju: 1 kΩ + 1 kΩ = 2 kΩ.' } },
+    { c: 'ohm', a: 1,
+      ro: { q: 'Două rezistoare de 1 kΩ în paralel au rezistența totală de:', o: ['2 kΩ', '500 Ω', '1 kΩ', '0,5 MΩ'], e: 'În paralel, rezistența totală este mai mică decât cea mai mică rezistență. Pentru două egale: R / 2 = 500 Ω.' },
+      en: { q: 'Two 1 kΩ resistors in parallel have a total resistance of:', o: ['2 kΩ', '500 Ω', '1 kΩ', '0.5 MΩ'], e: 'In parallel, the total is smaller than the smallest resistor. For two equal ones: R / 2 = 500 Ω.' },
+      sr: { q: 'Dva otpornika od 1 kΩ vezana paralelno imaju ukupan otpor:', o: ['2 kΩ', '500 Ω', '1 kΩ', '0,5 MΩ'], e: 'Paralelno, ukupni otpor je manji od najmanjeg otpornika. Za dva jednaka: R / 2 = 500 Ω.' } },
+    { c: 'ohm', a: 3,
+      ro: { q: 'Un rezistor de 220 Ω pe 5 V consumă un curent de aproximativ:', o: ['1,1 A', '0,5 mA', '220 mA', '23 mA'], e: 'I = U / R = 5 / 220 ≈ 0,023 A, adică 23 mA.' },
+      en: { q: 'A 220 Ω resistor across 5 V draws about:', o: ['1.1 A', '0.5 mA', '220 mA', '23 mA'], e: 'I = U / R = 5 / 220 ≈ 0.023 A, which is 23 mA.' },
+      sr: { q: 'Otpornik od 220 Ω na 5 V vuče struju od oko:', o: ['1,1 A', '0,5 mA', '220 mA', '23 mA'], e: 'I = U / R = 5 / 220 ≈ 0,023 A, to jest 23 mA.' } },
+    { c: 'ohm', a: 2,
+      ro: { q: 'Care rezistor se încălzește cel mai mult pe 9 V?', o: ['1 kΩ', '470 Ω', '100 Ω', '10 kΩ'], e: 'Puterea este P = U² / R. La 100 Ω: 81 / 100 = 0,81 W, peste limita tipică de 0,25 W.' },
+      en: { q: 'Which resistor heats up the most on 9 V?', o: ['1 kΩ', '470 Ω', '100 Ω', '10 kΩ'], e: 'Power is P = U² / R. At 100 Ω: 81 / 100 = 0.81 W, above the typical 0.25 W limit.' },
+      sr: { q: 'Koji se otpornik najviše greje na 9 V?', o: ['1 kΩ', '470 Ω', '100 Ω', '10 kΩ'], e: 'Snaga je P = U² / R. Na 100 Ω: 81 / 100 = 0,81 W, što je iznad tipičnih 0,25 W.' } },
+    { c: 'ohm', a: 0,
+      ro: { q: 'Ce culoare au primele benzi ale unui rezistor de 1 kΩ?', o: ['Maro, negru, roșu', 'Roșu, roșu, negru', 'Galben, violet, portocaliu', 'Albastru, gri, negru'], e: 'Maro (1), negru (0), roșu (× 100) dă 10 × 100 = 1000 Ω.' },
+      en: { q: 'What colour bands does a 1 kΩ resistor have?', o: ['Brown, black, red', 'Red, red, black', 'Yellow, violet, orange', 'Blue, grey, black'], e: 'Brown (1), black (0), red (× 100) gives 10 × 100 = 1000 Ω.' },
+      sr: { q: 'Koje boje su prve trake otpornika od 1 kΩ?', o: ['Braon, crna, crvena', 'Crvena, crvena, crna', 'Žuta, ljubičasta, narandžasta', 'Plava, siva, crna'], e: 'Braon (1), crna (0), crvena (× 100) daje 10 × 100 = 1000 Ω.' } },
+    { c: 'ohm', a: 3,
+      ro: { q: 'Ce se întâmplă cu curentul dacă dublezi tensiunea, pe aceeași rezistență?', o: ['Scade la jumătate', 'Rămâne la fel', 'Crește de patru ori', 'Se dublează'], e: 'Din I = U / R, dacă U se dublează și R rămâne, I se dublează.' },
+      en: { q: 'If you double the voltage across the same resistor, what happens to the current?', o: ['It halves', 'It stays the same', 'It rises four times', 'It doubles'], e: 'From I = U / R: if U doubles and R stays, I doubles.' },
+      sr: { q: 'Šta se dešava sa strujom ako udvostručiš napon na istom otporniku?', o: ['Prepolovi se', 'Ostaje ista', 'Poraste četiri puta', 'Udvostruči se'], e: 'Iz I = U / R: ako se U udvostruči, a R ostane isto, I se udvostruči.' } },
+    { c: 'ohm', a: 1,
+      ro: { q: 'Ce face un potențiometru într-un circuit?', o: ['Stochează sarcină', 'Împarte tensiunea într-un raport reglabil', 'Transformă lumina în curent', 'Oprește curentul la temperatură mare'], e: 'Cursorul împarte rezistența totală în două părți. Este un divizor reglabil.' },
+      en: { q: 'What does a potentiometer do in a circuit?', o: ['Stores charge', 'Splits the voltage in an adjustable ratio', 'Turns light into current', 'Stops the current when hot'], e: 'The wiper splits the total resistance into two parts. It is an adjustable divider.' },
+      sr: { q: 'Šta potenciometar radi u kolu?', o: ['Čuva punjenje', 'Deli napon u podesivom odnosu', 'Pretvara svetlost u struju', 'Zaustavlja struju kad je vruć'], e: 'Klizač deli ukupni otpor na dva dela. To je podesivi razdelnik.' } },
+    { c: 'ohm', a: 2,
+      ro: { q: 'Un rezistor de 10 Ω pus pe 9 V direct (fără altă piesă) face:', o: ['Nimic, 10 Ω este prea mic să conteze', 'Un LED mai luminos', 'Un curent de 0,9 A și rezistorul se arde', 'Tensiunea 0 V'], e: 'I = 9 / 10 = 0,9 A și P = 8,1 W. Rezistorul se arde.' },
+      en: { q: 'A 10 Ω resistor placed straight across 9 V:', o: ['Does nothing, 10 Ω is too small to matter', 'Makes an LED brighter', 'Draws 0.9 A and burns out', 'Makes the voltage 0 V'], e: 'I = 9 / 10 = 0.9 A and P = 8.1 W. The resistor burns out.' },
+      sr: { q: 'Otpornik od 10 Ω direktno na 9 V:', o: ['Ništa, 10 Ω je premalo da bi važilo', 'Čini LED svetlijim', 'Vuče 0,9 A i izgoreće', 'Napon postaje 0 V'], e: 'I = 9 / 10 = 0,9 A i P = 8,1 W. Otpornik izgoreće.' } },
+    { c: 'ohm', a: 0,
+      ro: { q: 'Ce este puterea electrică?', o: ['Tensiunea înmulțită cu curentul', 'Rezistența împărțită la curent', 'Curentul la pătrat, fără rezistență', 'Numărul de electroni'], e: 'P = U × I, în wați (W).' },
+      en: { q: 'What is electrical power?', o: ['Voltage multiplied by current', 'Resistance divided by current', 'Current squared, without resistance', 'The number of electrons'], e: 'P = U × I, in watts (W).' },
+      sr: { q: 'Šta je električna snaga?', o: ['Napon pomnožen strujom', 'Otpor podeljen strujom', 'Struja na kvadrat, bez otpora', 'Broj elektrona'], e: 'P = U × I, u vatima (W).' } },
+
+    // led (20-27)
+    { c: 'led', a: 1,
+      ro: { q: 'Ce are un LED în plus față de un rezistor?', o: ['Nimic', 'O cădere de tensiune aproape constantă în sens direct', 'Rezistență egală în ambele sensuri', 'Un condensator intern'], e: 'LED-ul este o diodă: în sens direct are o cădere de circa 2 până la 3 V, aproape constantă.' },
+      en: { q: 'What does an LED have that a resistor does not?', o: ['Nothing', 'An almost constant forward voltage drop', 'Equal resistance in both directions', 'An internal capacitor'], e: 'An LED is a diode: in forward direction it drops about 2 to 3 V, almost constant.' },
+      sr: { q: 'Šta LED ima, a otpornik nema?', o: ['Ništa', 'Skoro konstantan pad napona u propusnom smeru', 'Jednak otpor u oba smera', 'Unutrašnji kondenzator'], e: 'LED je dioda: u propusnom smeru ima pad od oko 2 do 3 V, skoro konstantan.' } },
+    { c: 'led', a: 3,
+      ro: { q: 'Un LED roșu pe 5 V cu rezistor de 220 Ω. Cam ce curent trece?', o: ['0,5 mA', '50 mA', '100 mA', '14 mA'], e: 'I = (5 - 1,9) / 220 ≈ 14 mA. Sub 20 mA, LED-ul este bine.' },
+      en: { q: 'A red LED on 5 V with a 220 Ω resistor. About how much current flows?', o: ['0.5 mA', '50 mA', '100 mA', '14 mA'], e: 'I = (5 - 1.9) / 220 ≈ 14 mA. Under 20 mA the LED is fine.' },
+      sr: { q: 'Crveni LED na 5 V sa otpornikom od 220 Ω. Koliko struje otprilike protiče?', o: ['0,5 mA', '50 mA', '100 mA', '14 mA'], e: 'I = (5 - 1,9) / 220 ≈ 14 mA. Ispod 20 mA LED je u redu.' } },
+    { c: 'led', a: 0,
+      ro: { q: 'Un LED pus invers (catodul la +) va:', o: ['Să nu se aprindă', 'Să se aprindă mai tare', 'Să se aprindă în culoare diferită', 'Să producă tensiune'], e: 'Dioda conduce doar de la anod la catod. În sens invers nu trece curent, deci LED-ul rămâne stins.' },
+      en: { q: 'An LED connected backwards (cathode to +) will:', o: ['Not light up', 'Light up brighter', 'Light up in a different colour', 'Generate voltage'], e: 'A diode conducts only from anode to cathode. In reverse no current flows, so the LED stays off.' },
+      sr: { q: 'LED spojen unazad (katoda na +) će:', o: ['Ne svetleti', 'Svetleti jače', 'Svetleti drugom bojom', 'Proizvesti napon'], e: 'Dioda provodi samo od anode ka katodi. U obrnutom smeru struja ne protiče, pa LED ostaje ugašen.' } },
+    { c: 'led', a: 2,
+      ro: { q: 'Care LED are cea mai mare cădere de tensiune în sens direct, în mod tipic?', o: ['Roșu', 'Verde', 'Albastru sau alb', 'Galben'], e: 'Albastru și alb au de obicei 3 V sau mai mult. Roșul are circa 1,9 V.' },
+      en: { q: 'Which LED typically has the highest forward voltage drop?', o: ['Red', 'Green', 'Blue or white', 'Yellow'], e: 'Blue and white usually drop 3 V or more. Red drops about 1.9 V.' },
+      sr: { q: 'Koji LED obično ima najveći pad napona u propusnom smeru?', o: ['Crveni', 'Zeleni', 'Plavi ili beli', 'Žuti'], e: 'Plavi i beli obično imaju 3 V ili više. Crveni ima oko 1,9 V.' } },
+    { c: 'led', a: 1,
+      ro: { q: 'La ce servește rezistorul în serie cu un LED?', o: ['Să mărească tensiunea', 'Să limiteze curentul prin LED', 'Să stocheze energie', 'Să schimbe culoarea'], e: 'Fără limitare, curentul crește rapid și LED-ul se arde.' },
+      en: { q: 'What is the series resistor with an LED for?', o: ['To raise the voltage', 'To limit the current through the LED', 'To store energy', 'To change the colour'], e: 'Without limiting, the current rises fast and the LED burns out.' },
+      sr: { q: 'Čemu služi otpornik u redu sa LED-om?', o: ['Da poveća napon', 'Da ograniči struju kroz LED', 'Da čuva energiju', 'Da promeni boju'], e: 'Bez ograničenja struja brzo raste i LED izgoreće.' } },
+    { c: 'led', a: 3,
+      ro: { q: 'Un LED pe 9 V cu rezistor de 330 Ω. Este în regulă?', o: ['Nu, LED-ul se arde mereu', 'Da, dar doar pentru 1 secundă', 'Nu, rezistorul se arde', 'Da: (9 - 1,9) / 330 ≈ 21 mA'], e: 'Curentul de 21 mA este sub limita tipică de 30 mA. Rezistorul disipă sub 0,15 W.' },
+      en: { q: 'An LED on 9 V with a 330 Ω resistor. Is it safe?', o: ['No, the LED always burns', 'Yes, but only for 1 second', 'No, the resistor burns', 'Yes: (9 - 1.9) / 330 ≈ 21 mA'], e: '21 mA is below the typical 30 mA limit. The resistor dissipates under 0.15 W.' },
+      sr: { q: 'LED na 9 V sa otpornikom od 330 Ω. Da li je bezbedno?', o: ['Ne, LED uvek izgoreva', 'Da, ali samo 1 sekundu', 'Ne, otpornik izgoreva', 'Da: (9 - 1,9) / 330 ≈ 21 mA'], e: '21 mA je ispod tipične granice od 30 mA. Otpornik troši manje od 0,15 W.' } },
+    { c: 'led', a: 0,
+      ro: { q: 'Ce boală are un LED care a ars?', o: ['A depășit curentul maxim și nu mai conduce', 'Nu are boală, doar se răcește', 'Are tensiune prea mare și se aprinde', 'Este prea nou'], e: 'Un LED ars are joncțiunea distrusă: nu mai conduce și nu se mai aprinde.' },
+      en: { q: 'What has happened to an LED that burned out?', o: ['It exceeded its maximum current and no longer conducts', 'It is just cooling down', 'The voltage is too high, so it lights', 'It is too new'], e: 'A burned LED has a damaged junction: it no longer conducts or lights.' },
+      sr: { q: 'Šta se desilo sa LED-om koji je izgoreo?', o: ['Prešao je maksimalnu struju i više ne provodi', 'Samo se hladi', 'Napon je prevelik, pa svetli', 'Nov je'], e: 'Izgoreo LED ima oštećen spoj: više ne provodi i ne svetli.' } },
+    { c: 'led', a: 2,
+      ro: { q: 'Doi LED-uri în serie pe 5 V, fiecare cu cădere de 1,9 V, cu un rezistor de 220 Ω. Cam ce curent trece?', o: ['23 mA', '14 mA', '0 mA, nu este destulă tensiune pentru ambele', 'Peste 100 mA'], e: 'Căderea totală este 3,8 V: (5 - 3,8) / 220 ≈ 5,5 mA. Ambele LED-uri ar fi slabe.' },
+      en: { q: 'Two LEDs in series on 5 V, each dropping 1.9 V, with a 220 Ω resistor. About how much current?', o: ['23 mA', '14 mA', '0 mA, there is not enough voltage for both', 'Over 100 mA'], e: 'The total drop is 3.8 V: (5 - 3.8) / 220 ≈ 5.5 mA. Both LEDs would be dim.' },
+      sr: { q: 'Dve LED diode u redu na 5 V, svaka sa padom od 1,9 V, sa otpornikom od 220 Ω. Koliko struje otprilike?', o: ['23 mA', '14 mA', '0 mA, nema dovoljno napona za obe', 'Preko 100 mA'], e: 'Ukupan pad je 3,8 V: (5 - 3,8) / 220 ≈ 5,5 mA. Obe bi bile slabe.' } },
+
+    // switches (28-37)
+    { c: 'switches', a: 0,
+      ro: { q: 'Ce face un buton (taster) normal deschis?', o: ['Închide circuitul doar cât este apăsat', 'Rămâne închis după ce îl apeși', 'Schimbă sensul curentului', 'Limitează curentul'], e: 'Normal deschis înseamnă că nu conduce până când îl apeși.' },
+      en: { q: 'What does a normally open push button do?', o: ['Closes the circuit only while pressed', 'Stays closed after you press it', 'Reverses the current', 'Limits the current'], e: 'Normally open means it does not conduct until you press it.' },
+      sr: { q: 'Šta radi taster normalno otvoren?', o: ['Zatvara kolo samo dok je pritisnut', 'Ostaje zatvoren posle pritiska', 'Menja smer struje', 'Ograničava struju'], e: 'Normalno otvoren znači da ne provodi dok ga ne pritisneš.' } },
+    { c: 'switches', a: 2,
+      ro: { q: 'Ce se întâmplă cu o intrare de semnal lăsată neconectată?', o: ['Este mereu 0 V, sigur', 'Este mereu 5 V, sigur', 'Poate fi nesigură: plutește', 'Se distruge'], e: 'O intrare care plutește captează zgomot. Un rezistor de tragere o fixează.' },
+      en: { q: 'What happens to a signal input left unconnected?', o: ['It is always a safe 0 V', 'It is always a safe 5 V', 'It floats and can be unreliable', 'It is destroyed'], e: 'A floating input picks up noise. A pull-down or pull-up resistor fixes it.' },
+      sr: { q: 'Šta se dešava sa ulazom signala koji ostane nepovezan?', o: ['Uvek je siguran 0 V', 'Uvek je siguran 5 V', 'Visi i može biti nepouzdan', 'Uništi se'], e: 'Ulaz koji visi hvata šum. Pull-down ili pull-up otpornik ga fiksira.' } },
+    { c: 'switches', a: 1,
+      ro: { q: 'Ce rol are rezistorul de tragere (pull-down) de 10 kΩ lângă un buton?', o: ['Ridică tensiunea la 5 V', 'Trage semnalul la 0 V când butonul e liber', 'Limitează curentul prin LED', 'Stochează energie'], e: 'Când butonul e liber, rezistorul leagă intrarea de masă, iar când e apăsat, ea ajunge la 5 V.' },
+      en: { q: 'What does a 10 kΩ pull-down resistor do next to a button?', o: ['Raises the voltage to 5 V', 'Pulls the signal to 0 V when the button is released', 'Limits the current through an LED', 'Stores energy'], e: 'When released, the resistor connects the input to ground. When pressed, the input goes to 5 V.' },
+      sr: { q: 'Šta radi pull-down otpornik od 10 kΩ pored tastera?', o: ['Podiže napon na 5 V', 'Vuče signal na 0 V kad je taster pušten', 'Ograničava struju kroz LED', 'Čuva energiju'], e: 'Kad je taster pušten, otpornik vezuje ulaz za masu. Kad je pritisnut, ulaz ide na 5 V.' } },
+    { c: 'switches', a: 3,
+      ro: { q: 'Care este cel mai important lucru la tranzistorul NPN folosit ca întrerupător?', o: ['Baza se leagă direct la +5 V fără rezistor', 'Colectorul se leagă direct la masă', 'Emitorul se lasă neconectat', 'Baza primește un curent mic, prin rezistor'], e: 'Baza are nevoie de un rezistor care să limiteze curentul (și de circa 0,7 V între bază și emitor).' },
+      en: { q: 'What matters most when using an NPN transistor as a switch?', o: ['Connect the base straight to +5 V with no resistor', 'Connect the collector straight to ground', 'Leave the emitter unconnected', 'Feed the base a small current through a resistor'], e: 'The base needs a resistor to limit its current (and about 0.7 V between base and emitter).' },
+      sr: { q: 'Šta je najvažnije kod NPN tranzistora kao prekidača?', o: ['Bazu vezati direktno na +5 V bez otpornika', 'Kolektor vezati direktno na masu', 'Emitor ostaviti nepovezan', 'Bazi dati malu struju preko otpornika'], e: 'Baza treba otpornik koji ograničava struju (i oko 0,7 V između baze i emitora).' } },
+    { c: 'switches', a: 0,
+      ro: { q: 'Într-un circuit NPN cu LED pe colector, unde pui LED-ul?', o: ['Între sursă și colector, cu rezistorul în serie', 'Între bază și emitor', 'Direct pe emitor, fără rezistor', 'Pe baza tranzistorului'], e: 'Sarcina (LED-ul cu rezistorul) se pune pe colector. Tranzistorul comută curentul ei spre masă.' },
+      en: { q: 'In an NPN circuit with an LED on the collector, where does the LED go?', o: ['Between the supply and the collector, with its resistor in series', 'Between base and emitter', 'Directly on the emitter with no resistor', 'On the base'], e: 'The load (the LED with its resistor) sits on the collector. The transistor switches its current to ground.' },
+      sr: { q: 'U NPN kolu sa LED-om na kolektoru, gde ide LED?', o: ['Između napajanja i kolektora, sa otpornikom u redu', 'Između baze i emitora', 'Direktno na emitoru, bez otpornika', 'Na bazi tranzistora'], e: 'Teret (LED sa otpornikom) ide na kolektor. Tranzistor prebacuje njegovu struju na masu.' } },
+    { c: 'switches', a: 2,
+      ro: { q: 'Ce înseamnă "saturație" la tranzistor?', o: ['Tranzistorul este oprit complet', 'Tranzistorul se încălzește', 'Tranzistorul conduce complet, ca un întrerupător închis', 'Tranzistorul are tensiune negativă'], e: 'În saturație, tensiunea colector-emitor este mică (circa 0,2 V), iar curentul este limitat de sarcină.' },
+      en: { q: 'What does "saturation" mean for a transistor?', o: ['The transistor is fully off', 'The transistor gets hot', 'The transistor conducts fully, like a closed switch', 'The transistor has negative voltage'], e: 'In saturation the collector-emitter voltage is small (about 0.2 V) and the load limits the current.' },
+      sr: { q: 'Šta znači "zasićenje" kod tranzistora?', o: ['Tranzistor je potpuno isključen', 'Tranzistor se greje', 'Tranzistor potpuno provodi, kao zatvoren prekidač', 'Tranzistor ima negativan napon'], e: 'U zasićenju je napon kolektor-emitor mali (oko 0,2 V), a struju ograničava teret.' } },
+    { c: 'switches', a: 1,
+      ro: { q: 'Comutatorul (prekidătorul) din circuit, în poziția "pornit", este:', o: ['Un circuit deschis', 'Un fir cu rezistență mică', 'O sursă de tensiune', 'Un condensator'], e: 'Închis înseamnă rezistență aproape zero, deci curentul trece.' },
+      en: { q: 'A switch in the "on" position is:', o: ['An open circuit', 'A wire with very low resistance', 'A voltage source', 'A capacitor'], e: 'Closed means almost zero resistance, so current flows.' },
+      sr: { q: 'Prekidač u položaju "uključeno" je:', o: ['Prekid kola', 'Žica sa vrlo malim otporom', 'Izvor napona', 'Kondenzator'], e: 'Zatvoren znači otpor skoro nula, pa struja prolazi.' } },
+    { c: 'switches', a: 3,
+      ro: { q: 'Cum se numește cel de-al treilea picior al tranzistorului NPN, lângă bază și colector?', o: ['Anod', 'Catod', 'Grilă', 'Emitor'], e: 'Cele trei picioare ale unui NPN sunt baza, colectorul și emitorul.' },
+      en: { q: 'What is the third leg of an NPN transistor, besides base and collector?', o: ['Anode', 'Cathode', 'Gate', 'Emitter'], e: 'The three legs of an NPN are base, collector and emitter.' },
+      sr: { q: 'Kako se zove treća noga NPN tranzistora, pored baze i kolektora?', o: ['Anoda', 'Katoda', 'Gejt', 'Emitor'], e: 'Tri noge NPN-a su baza, kolektor i emitor.' } },
+
+    // relays (38-43)
+    { c: 'relays', a: 2,
+      ro: { q: 'Ce este bobina unui releu?', o: ['Un condensator', 'Un rezistor de protecție', 'Un electromagnet care închide contactele', 'O baterie'], e: 'Bobina produce câmp magnetic când trece curent, iar acesta trage contactele.' },
+      en: { q: 'What is the coil of a relay?', o: ['A capacitor', 'A protection resistor', 'An electromagnet that moves the contacts', 'A battery'], e: 'When current flows, the coil creates a magnetic field that moves the contacts.' },
+      sr: { q: 'Šta je kalem releja?', o: ['Kondenzator', 'Zaštitni otpornik', 'Elektromagnet koji pomera kontakte', 'Baterija'], e: 'Kad kroz kalem prođe struja, nastaje magnetno polje koje pomera kontakte.' } },
+    { c: 'relays', a: 0,
+      ro: { q: 'Ce înseamnă NO la un releu?', o: ['Normal deschis: se închide când bobina e alimentată', 'Nicio opțiune', 'Normal oprit', 'Nivel scăzut'], e: 'NO (normally open) este contactul care se închide la alimentare. NC (normally closed) se deschide.' },
+      en: { q: 'What does NO mean on a relay?', o: ['Normally open: it closes when the coil is powered', 'No option', 'Normally off', 'Low level'], e: 'NO (normally open) closes when powered. NC (normally closed) opens.' },
+      sr: { q: 'Šta znači NO kod releja?', o: ['Normalno otvoren: zatvara se kad je kalem pod naponom', 'Nijedna opcija', 'Normalno isključen', 'Nizak nivo'], e: 'NO (normalno otvoren) se zatvara pod naponom. NC (normalno zatvoren) se otvara.' } },
+    { c: 'relays', a: 3,
+      ro: { q: 'De ce se folosește un releu cu un tranzistor?', o: ['Tranzistorul nu poate comuta nimic', 'Releul e mai ieftin decât LED-ul', 'Releul nu are nevoie de alimentare', 'Tranzistorul poate comanda bobina de curent mai mare, iar releul comută sarcina de putere'], e: 'Un microcontroler poate comuta un tranzistor. Tranzistorul alimentează bobina, iar releul comută circuitul de putere.' },
+      en: { q: 'Why use a relay together with a transistor?', o: ['The transistor cannot switch anything', 'The relay is cheaper than an LED', 'The relay needs no power', 'The transistor drives the coil current, and the relay switches the load'], e: 'A microcontroller can drive a transistor. The transistor powers the coil, and the relay switches the power circuit.' },
+      sr: { q: 'Zašto se relej koristi zajedno sa tranzistorom?', o: ['Tranzistor ne može ništa da prebaci', 'Relej je jeftiniji od LED-a', 'Relej ne treba napajanje', 'Tranzistor vodi struju kalema, a relej prebacuje teret'], e: 'Mikrokontroler može da upravlja tranzistorom. Tranzistor napaja kalem, a relej prebacuje strujno kolo.' } },
+    { c: 'relays', a: 1,
+      ro: { q: 'Ce se întâmplă cu un releu pe o tensiune prea mică?', o: ['Se aprinde LED-ul din bobină', 'Bobina nu trage destul curent, deci contactele rămân deschise', 'Se scurtcircuitează', 'Se topesc contactele'], e: 'Sub un prag de curent, forța magnetică nu învinge arcul, și contactele rămân deschise.' },
+      en: { q: 'What happens to a relay with too little coil voltage?', o: ['The coil LED lights up', 'The coil does not draw enough current, so the contacts stay open', 'It short-circuits', 'The contacts melt'], e: 'Below a current threshold the magnetic force cannot overcome the spring, so the contacts stay open.' },
+      sr: { q: 'Šta se dešava sa relejom kad je napon kalema premali?', o: ['Svetli LED u kalemu', 'Kalem ne vuče dovoljno struje, pa kontakti ostaju otvoreni', 'Pravi kratak spoj', 'Kontakti se tope'], e: 'Ispod praga struje magnetna sila ne savlada oprugu, pa kontakti ostaju otvoreni.' } },
+    { c: 'relays', a: 2,
+      ro: { q: 'Ce este o diodă de protecție (flyback) la bobina unui releu?', o: ['O sursă de energie', 'Un LED care arată starea releului', 'O diodă montată invers, care absoarbe tensiunea de la oprire', 'Un rezistor pentru curent mare'], e: 'La oprirea bobinei, tensiunea indusă poate distruge tranzistorul. Dioda invers polarizată o absoarbe.' },
+      en: { q: 'What is a flyback diode across a relay coil for?', o: ['It is an energy source', 'It is an LED that shows the relay state', 'A diode fitted in reverse that absorbs the voltage spike when the coil switches off', 'A resistor for high current'], e: 'When the coil turns off, the induced voltage spike can destroy the transistor. A reverse-biased diode absorbs it.' },
+      sr: { q: 'Čemu služi zaštitna (flyback) dioda preko kalema releja?', o: ['Kao izvor energije', 'Kao LED koji pokazuje stanje releja', 'Dioda montirana obrnuto, koja upija skok napona kad se kalem isključi', 'Kao otpornik za veliku struju'], e: 'Kad se kalem isključi, indukovani skok napona može uništiti tranzistor. Obrnuto polarizovana dioda ga upija.' } },
+    { c: 'relays', a: 0,
+      ro: { q: 'Releul din lecție are contactele COM, NO, NC. Dacă bobina nu e alimentată, ce este legat la COM?', o: ['NC, adică circuitul închis în repaus', 'Niciun punct', 'Doar NO, mereu', 'Bobina'], e: 'În repaus, COM este legat la NC. Când bobina trage, COM trece pe NO.' },
+      en: { q: 'The relay in the lesson has COM, NO and NC. With the coil unpowered, what is COM connected to?', o: ['NC, the circuit closed at rest', 'No pin', 'NO, always', 'The coil'], e: 'At rest, COM is connected to NC. When the coil pulls in, COM moves to NO.' },
+      sr: { q: 'Relej iz lekcije ima COM, NO i NC. Kad kalem nije pod naponom, za šta je vezan COM?', o: ['Za NC, zatvoreno kolo u mirovanju', 'Ni za jedan pin', 'Uvek za NO', 'Za kalem'], e: 'U mirovanju je COM vezan za NC. Kad kalem privuče, COM prelazi na NO.' } },
+
+    // sensors (44-49)
+    { c: 'sensors', a: 1,
+      ro: { q: 'Cum se schimbă rezistența unui fotorezistor (LDR) când crește lumina?', o: ['Crește', 'Scade', 'Rămâne constantă', 'Devine infinită'], e: 'Mai multă lumină înseamnă mai puțină rezistență.' },
+      en: { q: 'How does an LDR\'s resistance change as light increases?', o: ['It rises', 'It falls', 'It stays constant', 'It becomes infinite'], e: 'More light means less resistance.' },
+      sr: { q: 'Kako se menja otpor fotootpornika (LDR) kad svetlost raste?', o: ['Raste', 'Opada', 'Ostaje isti', 'Postaje beskonačan'], e: 'Više svetlosti znači manji otpor.' } },
+    { c: 'sensors', a: 2,
+      ro: { q: 'Cum se schimbă rezistența unui termistor NTC când crește temperatura?', o: ['Crește', 'Rămâne constantă', 'Scade', 'Devine zero absolut'], e: 'NTC înseamnă coeficient negativ de temperatură: la căldură scade rezistența.' },
+      en: { q: 'How does an NTC thermistor\'s resistance change as temperature rises?', o: ['It rises', 'It stays constant', 'It falls', 'It becomes absolute zero'], e: 'NTC means negative temperature coefficient: resistance falls as it heats up.' },
+      sr: { q: 'Kako se menja otpor NTC termistora kad temperatura raste?', o: ['Raste', 'Ostaje isti', 'Opada', 'Postaje apsolutna nula'], e: 'NTC znači negativan temperaturni koeficijent: otpor opada kad se zagreje.' } },
+    { c: 'sensors', a: 3,
+      ro: { q: 'Un LDR într-un divizor, cu lumină puternică, produce:', o: ['Tensiune mare pe LDR și mică pe rezistorul fix', 'Curent nul', 'Tensiune negativă', 'Tensiune mică pe LDR și mare pe rezistorul fix'], e: 'Lumina scade rezistența LDR-ului, deci pe el cade mai puțin din tensiune.' },
+      en: { q: 'An LDR in a divider, in strong light, gives:', o: ['High voltage across the LDR and low across the fixed resistor', 'Zero current', 'Negative voltage', 'Low voltage across the LDR and high across the fixed resistor'], e: 'Light lowers the LDR\'s resistance, so it drops less of the voltage.' },
+      sr: { q: 'LDR u razdelniku, na jakoj svetlosti, daje:', o: ['Visok napon na LDR i nizak na fiksnom otporniku', 'Nultu struju', 'Negativan napon', 'Nizak napon na LDR i visok na fiksnom otporniku'], e: 'Svetlost smanjuje otpor LDR-a, pa na njemu pada manji deo napona.' } },
+    { c: 'sensors', a: 0,
+      ro: { q: 'De ce un senzor pus într-un divizor de tensiune este util?', o: ['Transformă mărimea fizică într-o tensiune pe care o poți citi', 'Crește puterea bateriei', 'Elimină nevoia de rezistor', 'Face circuitul mai scump'], e: 'Divizorul convertește o schimbare de rezistență (lumină, temperatură) într-o tensiune măsurabilă.' },
+      en: { q: 'Why is a sensor in a voltage divider useful?', o: ['It turns a physical quantity into a voltage you can read', 'It raises the battery power', 'It removes the need for resistors', 'It makes the circuit more expensive'], e: 'The divider converts a change in resistance (light, temperature) into a measurable voltage.' },
+      sr: { q: 'Zašto je senzor u razdelniku napona koristan?', o: ['Pretvara fizičku veličinu u napon koji možeš da očitaš', 'Povećava snagu baterije', 'Uklanja potrebu za otpornicima', 'Čini kolo skupljim'], e: 'Razdelnik pretvara promenu otpora (svetlost, temperatura) u merljiv napon.' } },
+    { c: 'sensors', a: 2,
+      ro: { q: 'Un potențiometru de 10 kΩ, cu cursorul la mijloc, are între cursor și capătul de jos:', o: ['10 kΩ', '20 kΩ', '5 kΩ', '0 Ω'], e: 'La mijloc, fiecare jumătate are 5 kΩ. Cursorul la mijloc dă 5 kΩ spre fiecare capăt.' },
+      en: { q: 'A 10 kΩ potentiometer with the wiper in the middle has between the wiper and the bottom end:', o: ['10 kΩ', '20 kΩ', '5 kΩ', '0 Ω'], e: 'In the middle, each half has 5 kΩ.' },
+      sr: { q: 'Potenciometar od 10 kΩ, sa klizačem u sredini, ima između klizača i donjeg kraja:', o: ['10 kΩ', '20 kΩ', '5 kΩ', '0 Ω'], e: 'U sredini, svaka polovina ima 5 kΩ.' } },
+    { c: 'sensors', a: 1,
+      ro: { q: 'La ce servește un senzor de temperatură cu NTC într-un circuit simplu?', o: ['Pentru a stoca energie', 'Pentru a transforma căldura într-un semnal de tensiune', 'Pentru a schimba culoarea LED-ului', 'Pentru a opri bateria'], e: 'Schimbarea rezistenței cu temperatura se vede ca o schimbare de tensiune în divizor.' },
+      en: { q: 'What is an NTC temperature sensor used for in a simple circuit?', o: ['Storing energy', 'Turning heat into a voltage signal', 'Changing the colour of an LED', 'Stopping the battery'], e: 'The resistance change with temperature shows as a voltage change in the divider.' },
+      sr: { q: 'Čemu služi NTC senzor temperature u jednostavnom kolu?', o: ['Čuvanju energije', 'Pretvaranju toplote u signal napona', 'Promeni boje LED-a', 'Zaustavljanju baterije'], e: 'Promena otpora sa temperaturom vidi se kao promena napona u razdelniku.' } },
+    { c: 'sensors', a: 3,
+      ro: { q: 'Un LDR în întuneric are o rezistență de ordinul:', o: ['Ohmilor', 'Miliohmilor', 'Ampere', 'Sute de kiloohmi sau megaohmi'], e: 'În întuneric, LDR-urile tipice au sute de kΩ până la câțiva MΩ.' },
+      en: { q: 'An LDR in darkness has a resistance of the order of:', o: ['Ohms', 'Milliohms', 'Amperes', 'Hundreds of kilohms or megohms'], e: 'In darkness typical LDRs are hundreds of kΩ to a few MΩ.' },
+      sr: { q: 'Fotootpornik u mraku ima otpor reda veličine:', o: ['Oma', 'Miliomi', 'Ampera', 'Stotine kiloma ili megoma'], e: 'U mraku su tipični LDR-ovi od stotina kΩ do nekoliko MΩ.' } },
+
+    // safety (50-59 and one spare)
+    { c: 'safety', a: 0,
+      ro: { q: 'Înainte de a alimenta un circuit nou, ce verifici mai întâi?', o: ['Scurtcircuitele, polaritatea și valorile rezistoarelor', 'Culoarea firelor', 'Mărimea plăcii', 'Numărul de piese'], e: 'Verificările de bază previn arderea componentelor și scurtcircuitele.' },
+      en: { q: 'Before powering a new circuit, what do you check first?', o: ['Short circuits, polarity and resistor values', 'The colour of the wires', 'The size of the board', 'The number of parts'], e: 'Basic checks prevent burned parts and short circuits.' },
+      sr: { q: 'Pre nego što napajaš novo kolo, šta prvo proveravaš?', o: ['Kratke spojeve, polaritet i vrednosti otpornika', 'Boju žica', 'Veličinu ploče', 'Broj delova'], e: 'Osnovne provere sprečavaju izgorevanje delova i kratke spojeve.' } },
+    { c: 'safety', a: 2,
+      ro: { q: 'Un LED arde imediat după alimentare. Care este cea mai probabilă cauză?', o: ['Lipsește lumina', 'Bateria e prea mică', 'Lipsește rezistorul, sau LED-ul are curent prea mare', 'Firele sunt prea scurte'], e: 'Curentul fără limitare trece de 30 mA. Verifică rezistorul și polaritatea.' },
+      en: { q: 'An LED burns out right after power-up. What is the most likely cause?', o: ['There is no light', 'The battery is too small', 'The resistor is missing, or the current is too high', 'The wires are too short'], e: 'Without limiting, the current goes past 30 mA. Check the resistor and the polarity.' },
+      sr: { q: 'LED izgori odmah posle napajanja. Koji je najverovatniji uzrok?', o: ['Nema svetlosti', 'Baterija je premala', 'Nedostaje otpornik ili je struja prevelika', 'Žice su prekratke'], e: 'Struja bez ograničenja prelazi 30 mA. Proveri otpornik i polaritet.' } },
+    { c: 'safety', a: 1,
+      ro: { q: 'Un rezistor de 1/4 W este de regulă sigur până la aproximativ:', o: ['1 W', '0,25 W', '5 W', '10 W'], e: 'Rezistoarele de 1/4 W suportă până la 0,25 W. Peste asta se supraîncălzesc.' },
+      en: { q: 'A 1/4 W resistor is generally safe up to about:', o: ['1 W', '0.25 W', '5 W', '10 W'], e: 'A 1/4 W resistor handles up to 0.25 W. Above that it overheats.' },
+      sr: { q: 'Otpornik od 1/4 W je obično bezbedan do oko:', o: ['1 W', '0,25 W', '5 W', '10 W'], e: 'Otpornik od 1/4 W podnosi do 0,25 W. Preko toga se pregreva.' } },
+    { c: 'safety', a: 3,
+      ro: { q: 'Ce faci când un circuit fumegă sau miroase a ars?', o: ['Îl lași pornit să vezi ce se întâmplă', 'Adaugi încă o baterie', 'Scoți firele cu mâna udă', 'Oprești sursa și cauți piesa arsă'], e: 'Deconectează sursa, apoi verifică piesele fierbinți, polaritatea și valorile.' },
+      en: { q: 'What do you do when a circuit smokes or smells burned?', o: ['Leave it on to see what happens', 'Add another battery', 'Pull the wires out with wet hands', 'Switch off the source and look for the burned part'], e: 'Disconnect the source first, then check hot parts, polarity and values.' },
+      sr: { q: 'Šta radiš kad kolo dimi ili miriše na spaljeno?', o: ['Ostavljaš uključeno da vidiš šta će biti', 'Dodaješ još jednu bateriju', 'Vučeš žice mokrim rukama', 'Isključuješ izvor i tražiš izgoreli deo'], e: 'Prvo isključi izvor, pa proveri vruće delove, polaritet i vrednosti.' } },
+    { c: 'safety', a: 0,
+      ro: { q: 'Un condensator electrolitic are polaritate. Ce se întâmplă dacă este conectat invers?', o: ['Se poate supraîncălzi și exploda', 'Nimic', 'Devine mai mare', 'Se schimbă culoarea firelor'], e: 'Electroliticul invers polarizat se poate încălzi, scurge sau exploda. Respectă semnul.' },
+      en: { q: 'An electrolytic capacitor is polarised. What happens if it is connected backwards?', o: ['It can overheat and burst', 'Nothing', 'It becomes bigger', 'The wires change colour'], e: 'A reverse-connected electrolytic can overheat, leak or burst. Respect the marking.' },
+      sr: { q: 'Elektrolitski kondenzator ima polaritet. Šta se desi ako se spoji unazad?', o: ['Može da se pregreje i pukne', 'Ništa', 'Postane veći', 'Žice promene boju'], e: 'Elektrolitski spojen unazad može da se pregreje, procuri ili pukne. Poštuj oznaku.' } },
+    { c: 'safety', a: 2,
+      ro: { q: 'Ce înseamnă că un circuit "nu se stabilizează" în simulator?', o: ['Bateria s-a încărcat', 'LED-ul a ieșit', 'Relația tensiune-curent nu are un răspuns stabil; verifică buclele și piesele neliniare', 'Totul e în regulă'], e: 'Piesele neliniare (LED, tranzistor, releu) au nevoie de o soluție stabilă. Circuitele ciudate pot cere verificare.' },
+      en: { q: 'What does "did not settle" mean in the simulator?', o: ['The battery is charged', 'The LED went out', 'The voltage-current relation has no stable answer; check loops and nonlinear parts', 'Everything is fine'], e: 'Nonlinear parts (LEDs, transistors, relays) need a stable solution. Unusual circuits may need checking.' },
+      sr: { q: 'Šta znači da se kolo "nije stabilizovalo" u simulatoru?', o: ['Baterija se napunila', 'LED se ugasio', 'Odnos napona i struje nema stabilno rešenje; proveri petlje i nelinearne delove', 'Sve je u redu'], e: 'Nelinearni delovi (LED, tranzistor, relej) traže stabilno rešenje. Neobična kola mogu tražiti proveru.' } },
+    { c: 'safety', a: 1,
+      ro: { q: 'Care este cel mai bun mod de a repara un circuit stricat?', o: ['Schimbi toate piesele fără să te uiți', 'Verifici pas cu pas: sursa, polaritatea, valorile, apoi firele', 'Adaugi piese noi până merge', 'Tai firele'], e: 'Metoda pas cu pas găsește defectul și evită să strici și mai mult.' },
+      en: { q: 'What is the best way to repair a broken circuit?', o: ['Replace every part without looking', 'Check step by step: source, polarity, values, then wires', 'Keep adding parts until it works', 'Cut the wires'], e: 'A step-by-step check finds the fault and avoids causing more damage.' },
+      sr: { q: 'Koji je najbolji način da popraviš pokvareno kolo?', o: ['Zameniš sve delove, ne gledajući', 'Proveravaš korak po korak: izvor, polaritet, vrednosti, pa žice', 'Dodaješ nove delove dok ne proradi', 'Seckaš žice'], e: 'Provera korak po korak nađe kvar i sprečava dodatna oštećenja.' } },
+    { c: 'safety', a: 3,
+      ro: { q: 'Dacă un releu nu trage, care este primul lucru de verificat?', o: ['Culoarea contactelor', 'Mărimea LED-ului din alt circuit', 'Bateria din telefon', 'Alimentarea bobinei și conexiunea ei la masă'], e: 'Fără alimentare și masă corecte, bobina nu produce câmp magnetic.' },
+      en: { q: 'If a relay does not pull in, what do you check first?', o: ['The colour of the contacts', 'The size of an LED in another circuit', 'The phone battery', 'The coil supply and its connection to ground'], e: 'Without correct supply and ground, the coil makes no magnetic field.' },
+      sr: { q: 'Ako relej ne privlači, šta prvo proveravaš?', o: ['Boju kontakata', 'Veličinu LED-a u drugom kolu', 'Bateriju telefona', 'Napajanje kalema i njegovu vezu sa masom'], e: 'Bez ispravnog napajanja i mase, kalem ne stvara magnetno polje.' } },
+    { c: 'safety', a: 0,
+      ro: { q: 'Ce unitate de măsură are capacitatea condensatorului?', o: ['Farad (F), de obicei în µF', 'Ohm', 'Amper', 'Volt-amper'], e: 'Capacitatea se măsoară în farazi. În practică se folosesc microfarazi (µF).' },
+      en: { q: 'What unit measures capacitance?', o: ['Farad (F), usually in µF', 'Ohm', 'Ampere', 'Volt-ampere'], e: 'Capacitance is measured in farads. In practice microfarads (µF) are common.' },
+      sr: { q: 'Koja jedinica meri kapacitet kondenzatora?', o: ['Farad (F), obično u µF', 'Om', 'Amper', 'Volt-amper'], e: 'Kapacitet se meri u faradima. U praksi se koriste mikrofaradi (µF).' } },
+    // extra cards (to 60)
+    { c: 'basics', a: 0,
+      ro: { q: 'Ce este curentul electric?', o: ['Mișcarea ordonată a sarcinilor electrice printr-un conductor', 'Diferența de tensiune dintre două puncte', 'Rezistența unui fir', 'Puterea unei surse'], e: 'Curentul este un flux de sarcini (electroni) printr-un conductor.' },
+      en: { q: 'What is electric current?', o: ['The ordered flow of electric charges through a conductor', 'The voltage difference between two points', 'The resistance of a wire', 'The power of a source'], e: 'Current is a flow of charges (electrons) through a conductor.' },
+      sr: { q: 'Šta je električna struja?', o: ['Uređeno kretanje električnih naelektrisanja kroz provodnik', 'Razlika napona između dve tačke', 'Otpor žice', 'Snaga izvora'], e: 'Struja je tok naelektrisanja (elektrona) kroz provodnik.' } },
+    { c: 'ohm', a: 2,
+      ro: { q: 'Ce se întâmplă cu curentul printr-un rezistor de 1 kΩ dacă tensiunea crește de la 5 V la 10 V?', o: ['Scade la jumătate', 'Rămâne la fel', 'Se dublează, de la 5 mA la 10 mA', 'Crește de patru ori'], e: 'I = U / R: de la 5 / 1000 la 10 / 1000, adică de la 5 mA la 10 mA.' },
+      en: { q: 'What happens to the current through a 1 kΩ resistor if the voltage rises from 5 V to 10 V?', o: ['It halves', 'It stays the same', 'It doubles, from 5 mA to 10 mA', 'It rises four times'], e: 'I = U / R: from 5 / 1000 to 10 / 1000, that is from 5 mA to 10 mA.' },
+      sr: { q: 'Šta se dešava sa strujom kroz otpornik od 1 kΩ ako napon poraste sa 5 V na 10 V?', o: ['Prepolovi se', 'Ostaje ista', 'Udvostruči se, sa 5 mA na 10 mA', 'Poraste četiri puta'], e: 'I = U / R: sa 5 / 1000 na 10 / 1000, to jest sa 5 mA na 10 mA.' } },
+    { c: 'led', a: 1,
+      ro: { q: 'Ce culoare de LED are, în mod tipic, cea mai mică tensiune de prag?', o: ['Albastru', 'Roșu', 'Alb', 'Violet'], e: 'Roșul are circa 1,9 V, albastrul și albul peste 3 V.' },
+      en: { q: 'Which LED colour typically has the lowest forward voltage?', o: ['Blue', 'Red', 'White', 'Violet'], e: 'Red is about 1.9 V, while blue and white are above 3 V.' },
+      sr: { q: 'Koja boja LED-a ima obično najmanji napon praga?', o: ['Plava', 'Crvena', 'Bela', 'Ljubičasta'], e: 'Crvena ima oko 1,9 V, a plava i bela preko 3 V.' } },
+  ];
+
+  // Serbian Cyrillic is derived from Serbian Latin at load time.
+  const api = {
+    CATEGORIES,
+    CARDS
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.CircuitCards = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Kristian Mario Mišković (TekiDeki)
+ * Twelve broken circuits. The player gets the symptom and the scenarios, never the fault.
+ * Scenario keys: led / led2 / led3 (LED in order), relay, npn (transistor), with on/off/closed/open.
+ * Inputs: button, switch, ldr (light 0..1), ntc (temperature), pot (wiper 0..1). */
+(function (global) {
+  'use strict';
+
+  const CHALLENGES = [
+    {
+      id: 'led-reversed',
+      title: { ro: 'LED-ul invers', en: 'The backwards LED', sr: 'LED okrenut naopako' },
+      symptom: {
+        ro: 'Alimentare pe 5 V, rezistor de 220 Ω, LED roșu. LED-ul nu se aprinde deloc.',
+        en: '5 V supply, 220 Ω resistor, red LED. The LED never lights up.',
+        sr: 'Napajanje 5 V, otpornik 220 Ω, crveni LED. LED se nikad ne upali.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'e3', props: { R: 220 } },
+          { type: 'led', hole: 'e8', props: { color: 'red' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e9'], ['e8', 'P1-8']]
+      },
+      scenarios: [{ in: {}, expect: { led: 'on' } }]
+    },
+    {
+      id: 'resistor-too-small',
+      title: { ro: 'Rezistorul care fumegă', en: 'The smoking resistor', sr: 'Otpornik koji dimi' },
+      symptom: {
+        ro: 'Circuit cu LED pe 9 V. La simulare, rezistorul devine fierbinte și LED-ul nu se aprinde.',
+        en: 'An LED circuit on 9 V. When simulated the resistor gets hot and the LED stays off.',
+        sr: 'Kolo sa LED-om na 9 V. Pri simulaciji otpornik se zagreje, a LED ne svetli.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 9 } },
+          { type: 'resistor', hole: 'e3', props: { R: 10 } },
+          { type: 'led', hole: 'e8', props: { color: 'green' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e8'], ['e9', 'P1-9']]
+      },
+      scenarios: [{ in: {}, expect: { led: 'on' } }]
+    },
+    {
+      id: 'dead-button',
+      title: { ro: 'Butonul mort', en: 'The dead button', sr: 'Mrtav taster' },
+      symptom: {
+        ro: 'Când apeși butonul, LED-ul ar trebui să se aprindă. Nu se întâmplă nimic, indiferent de apăsare.',
+        en: 'Pressing the button should light the LED. Nothing happens, whether it is pressed or not.',
+        sr: 'Kad pritisneš taster, LED treba da se upali. Ništa se ne dešava, bez obzira na pritisak.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'button', hole: 'e20' },
+          { type: 'resistor', hole: 'e24', props: { R: 330 } },
+          { type: 'led', hole: 'e29', props: { color: 'red' } }
+        ],
+        wires: [['P1+20', 'e20'], ['P1+22', 'e22'], ['e28', 'e29'], ['e30', 'P1-30']]
+      },
+      scenarios: [
+        { in: { button: false }, expect: { led: 'off' } },
+        { in: { button: true }, expect: { led: 'on' } }
+      ]
+    },
+    {
+      id: 'relay-no-click',
+      title: { ro: 'Releul mut', en: 'The silent relay', sr: 'Nemi relej' },
+      symptom: {
+        ro: 'Releul trebuie să tragă când circuitul este alimentat, iar contactul să închidă. Releul rămâne în repaus.',
+        en: 'The relay should pull in when the circuit is powered, closing its contact. It stays at rest.',
+        sr: 'Relej treba da privuče kad je kolo pod naponom i zatvori kontakt. Ostaje u mirovanju.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'relay', hole: 'e10' },
+          { type: 'resistor', hole: 'b15', props: { R: 220 } },
+          { type: 'led', hole: 'b20', props: { color: 'green' } }
+        ],
+        wires: [
+          ['P1+12', 'e12'], ['e13', 'b15'], ['b19', 'b20'], ['b21', 'P1-21'],
+          ['e10', 'P1-10'], ['e11', 'P1-11']
+        ]
+      },
+      scenarios: [{ in: {}, expect: { relay: 'closed', led: 'on' } }]
+    },
+    {
+      id: 'transistor-swapped',
+      title: { ro: 'Tranzistorul nu conduce', en: 'The transistor that will not switch', sr: 'Tranzistor koji ne provodi' },
+      symptom: {
+        ro: 'Un buton deschide baza tranzistorului, iar LED-ul din colector ar trebui să se aprindă la apăsare. Nu se aprinde.',
+        en: 'A button drives the transistor base, and the LED on the collector should light when pressed. It does not.',
+        sr: 'Taster vodi bazu tranzistora, a LED na kolektoru treba da se upali kad se pritisne. Ne upali se.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'b3', props: { R: 470 } },
+          { type: 'led', hole: 'b8', props: { color: 'red' } },
+          { type: 'npn', hole: 'j10' },
+          { type: 'button', hole: 'e20' },
+          { type: 'resistor', hole: 'e24', props: { R: 10000 } },
+          { type: 'resistor', hole: 'b25', props: { R: 100000 } }
+        ],
+        wires: [
+          ['P1+3', 'b3'], ['b7', 'b8'], ['b9', 'j12'], ['j11', 'P1-11'],
+          ['P1+20', 'e20'], ['e22', 'e24'], ['e28', 'j10'], ['b25', 'j10'], ['b29', 'P1-29']
+        ]
+      },
+      scenarios: [
+        { in: { button: false }, expect: { led: 'off' } },
+        { in: { button: true }, expect: { led: 'on', npn: 'on' } }
+      ]
+    },
+    {
+      id: 'ldr-inverted',
+      title: { ro: 'Lumina inversată', en: 'The inverted light sensor', sr: 'Obrnut svetlosni senzor' },
+      symptom: {
+        ro: 'LED-ul trebuie să se aprindă în întuneric și să se stingă la lumină. Acum face exact invers.',
+        en: 'The LED should light in the dark and go out in the light. Right now it does the opposite.',
+        sr: 'LED treba da svetli u mraku, a da se ugasi na svetlosti. Sad radi obrnuto.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'ldr', hole: 'e3', props: { light: 0.5 } },
+          { type: 'resistor', hole: 'e6', props: { R: 2200 } },
+          { type: 'resistor', hole: 'b5', props: { R: 330 } },
+          { type: 'led', hole: 'b10', props: { color: 'red' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e5', 'e6'], ['e10', 'P1-10'], ['b9', 'b10'], ['b11', 'P1-11']]
+      },
+      scenarios: [
+        { in: { ldr: 0 }, expect: { led: 'on' } },
+        { in: { ldr: 1 }, expect: { led: 'off' } }
+      ]
+    },
+    {
+      id: 'rails-swapped',
+      title: { ro: 'Șinele inversate', en: 'The swapped rails', sr: 'Zamenjene šine' },
+      symptom: {
+        ro: 'Bateria este conectată corect, dar LED-ul din circuit nu se aprinde niciodată.',
+        en: 'The battery is connected correctly, but the LED in this circuit never lights.',
+        sr: 'Baterija je dobro povezana, ali LED u ovom kolu se nikad ne upali.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'e3', props: { R: 220 } },
+          { type: 'led', hole: 'e8', props: { color: 'blue' } }
+        ],
+        wires: [['P1-3', 'e3'], ['e7', 'e8'], ['e9', 'P1+9']]
+      },
+      scenarios: [{ in: {}, expect: { led: 'on' } }]
+    },
+    {
+      id: 'pot-floating-wiper',
+      title: { ro: 'Potențiometrul mut', en: 'The silent potentiometer', sr: 'Nemi potenciometar' },
+      symptom: {
+        ro: 'Rotind potențiometrul, LED-ul ar trebui să se aprindă când cursorul e sus și să se stingă când e jos. Nu se schimbă nimic.',
+        en: 'Turning the potentiometer should light the LED when the wiper is high and turn it off when low. Nothing changes.',
+        sr: 'Okretanjem potenciometra LED treba da se upali kad je klizač gore, a ugasi kad je dole. Ništa se ne menja.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'pot', hole: 'e3', props: { pos: 0.5 } },
+          { type: 'resistor', hole: 'e8', props: { R: 1000 } },
+          { type: 'led', hole: 'e13', props: { color: 'red' } }
+        ],
+        wires: [['P1+3', 'e3'], ['P1-5', 'e5'], ['e12', 'e13'], ['e14', 'P1-14']]
+      },
+      scenarios: [
+        { in: { pot: 0.9 }, expect: { led: 'on' } },
+        { in: { pot: 0.05 }, expect: { led: 'off' } }
+      ]
+    },
+    {
+      id: 'burned-led',
+      title: { ro: 'LED-ul ars', en: 'The burned LED', sr: 'Izgoreo LED' },
+      symptom: {
+        ro: 'Circuitul era bun ieri. Astăzi LED-ul nu mai luminează, deși rezistorul și bateria sunt în regulă.',
+        en: 'This circuit worked yesterday. Today the LED is dark, though the resistor and battery are fine.',
+        sr: 'Kolo je radilo juče. Danas LED ne svetli, iako su otpornik i baterija u redu.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'e3', props: { R: 330 } },
+          { type: 'led', hole: 'e8', props: { color: 'white' }, burned: true }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e8'], ['e9', 'P1-9']]
+      },
+      scenarios: [{ in: {}, expect: { led: 'on' } }]
+    },
+    {
+      id: 'two-leds-series',
+      title: { ro: 'Două LED-uri în serie', en: 'Two LEDs in series', sr: 'Dve LED diode u redu' },
+      symptom: {
+        ro: 'Două LED-uri roșii în serie, cu un rezistor de 330 Ω, pe 5 V. Niciunul nu se aprinde.',
+        en: 'Two red LEDs in series with a 330 Ω resistor on 5 V. Neither lights up.',
+        sr: 'Dve crvene LED diode u redu sa otpornikom 330 Ω na 5 V. Nijedna ne svetli.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'e3', props: { R: 330 } },
+          { type: 'led', hole: 'e8', props: { color: 'red' } },
+          { type: 'led', hole: 'e10', props: { color: 'red' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e8'], ['e9', 'e11'], ['e10', 'P1-10']]
+      },
+      scenarios: [{ in: {}, expect: { led: 'on', led2: 'on' } }]
+    },
+    {
+      id: 'relay-driver',
+      title: { ro: 'Releul comandat de tranzistor', en: 'The relay driven by a transistor', sr: 'Relej koji vodi tranzistor' },
+      symptom: {
+        ro: 'Butonul ar trebui să tragă releul prin tranzistor. Apăsat, releul rămâne deschis, iar tranzistorul nu comută.',
+        en: 'The button should pull the relay in through the transistor. Pressed, the relay stays open and the transistor does not switch.',
+        sr: 'Taster treba da privuče relej preko tranzistora. Pritisnut, relej ostaje otvoren, a tranzistor ne prebacuje.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'relay', hole: 'e11' },
+          { type: 'npn', hole: 'j10' },
+          { type: 'button', hole: 'e20' },
+          { type: 'resistor', hole: 'e24', props: { R: 10000 } },
+          { type: 'resistor', hole: 'b25', props: { R: 100000 } }
+        ],
+        wires: [
+          ['P1+11', 'e11'], ['e12', 'j12'], ['e13', 'P1+13'],
+          ['P1+20', 'e20'], ['e28', 'j10'], ['b25', 'j10'], ['b29', 'P1-29'], ['j11', 'P1-11']
+        ]
+      },
+      scenarios: [
+        { in: { button: false }, expect: { relay: 'open' } },
+        { in: { button: true }, expect: { relay: 'closed', npn: 'on' } }
+      ]
+    },
+    {
+      id: 'hidden-short',
+      title: { ro: 'Scurtcircuitul ascuns', en: 'The hidden short', sr: 'Skriveni kratki spoj' },
+      symptom: {
+        ro: 'Un circuit simplu cu LED. Bateria pare încărcată, dar LED-ul rămâne stins și simulatorul semnalează ceva la sursă.',
+        en: 'A simple LED circuit. The battery looks charged, but the LED stays off and the simulator warns about the source.',
+        sr: 'Jednostavno kolo sa LED-om. Baterija izgleda napunjena, ali LED ostaje ugašen i simulator upozorava na izvor.'
+      },
+      setup: {
+        parts: [
+          { type: 'battery', hole: 'P1+1', props: { V: 5 } },
+          { type: 'resistor', hole: 'e3', props: { R: 220 } },
+          { type: 'led', hole: 'e8', props: { color: 'red' } }
+        ],
+        wires: [['P1+3', 'e3'], ['e7', 'e8'], ['e9', 'P1-9'], ['P1+15', 'P1-15']]
+      },
+      scenarios: [{ in: {}, expect: { led: 'on' } }]
+    }
+  ];
+
+  const api = { CHALLENGES };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.CircuitRepair = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* SPDX-License-Identifier: Apache-2.0
+ * Copyright 2026 Kristian Mario Mišković (TekiDeki)
+ * Circuit Lab UI: breadboard drawing, touch and mouse interaction, lessons, quiz cards, repair mode. */
+(function () {
+  'use strict';
+
+  const E = window.CircuitEngine;
+  const I18N = window.CircuitI18N;
+  const LESSONS = window.CircuitLessons.LESSONS;
+  const CARDS = window.CircuitCards.CARDS;
+  const CATEGORIES = window.CircuitCards.CATEGORIES;
+  const CHALLENGES = window.CircuitRepair.CHALLENGES;
+
+  const LANGS = ['ro', 'en', 'sr-latn', 'sr-cyrl'];
+  const STORE_KEY = 'circuit-lab:v1';
+  const COLS = 30;
+  const PITCH = 18;
+  const X0 = 46;
+  const ROW_Y = { 'P1+': 22, 'P1-': 40, a: 84, b: 102, c: 120, d: 138, e: 156, f: 212, g: 230, h: 248, i: 266, j: 284, 'P2+': 340, 'P2-': 358 };
+  const ROWS_ALL = 'abcdefghij'.split('');
+  const RAILS = ['P1+', 'P1-', 'P2+', 'P2-'];
+  const WIRE_COLORS = ['#dc2626', '#111827', '#eab308', '#2563eb', '#16a34a', '#f97316', '#a855f7'];
+  const TOOL_PART_TYPES = ['battery', 'resistor', 'led', 'diode', 'capacitor', 'button', 'switch', 'npn', 'relay', 'ldr', 'ntc', 'pot'];
+  const CAT_LABEL = { ro: {}, en: {}, 'sr-latn': {}, 'sr-cyrl': {} };
+
+  // ---------- state ----------
+  const S = {
+    lang: 'en',
+    tab: 'lab',
+    circuit: { parts: [], wires: [] },
+    tool: 'select',
+    partType: 'resistor',
+    pending: null,
+    selected: null,
+    undo: [],
+    simulated: false,
+    result: null,
+    measure: null,
+    drag: null,
+    down: null,
+    lesson: 0,
+    deck: { cat: 'all', order: [], index: 0, answered: null, score: 0, done: false, correct: 0 },
+    challenge: null,
+    challengeResult: null,
+    done: {},
+    toastTimer: null
+  };
+
+  // ---------- language helpers ----------
+  function ui(key) {
+    const table = I18N.ui[S.lang] || I18N.ui.en;
+    return table[key] !== undefined ? table[key] : (I18N.ui.en[key] !== undefined ? I18N.ui.en[key] : key);
+  }
+  function srKey(lang) { return lang === 'sr-latn' || lang === 'sr-cyrl' ? 'sr' : lang; }
+  function cyrOut(text) { return S.lang === 'sr-cyrl' ? I18N.toCyrillic(text) : text; }
+  // Localised value of a content object {ro, en, sr} (sr is Serbian Latin).
+  function L(obj) {
+    if (obj === undefined || obj === null) return '';
+    if (typeof obj === 'string') return cyrOut(obj);
+    const v = obj[srKey(S.lang)];
+    if (Array.isArray(v)) return v.map(cyrOut);
+    return cyrOut(v);
+  }
+  function setLang(lang) {
+    if (LANGS.indexOf(lang) < 0) return;
+    S.lang = lang;
+    document.documentElement.lang = lang === 'sr-latn' ? 'sr-Latn' : (lang === 'sr-cyrl' ? 'sr-Cyrl' : lang);
+    saveStore();
+    renderAll();
+  }
+  function detectLang() {
+    const nav = (navigator.language || 'en').toLowerCase();
+    if (nav.indexOf('ro') === 0) return 'ro';
+    if (nav.indexOf('sr') === 0) return nav.indexOf('cyrl') >= 0 || nav.indexOf('-cy') >= 0 ? 'sr-cyrl' : 'sr-latn';
+    return 'en';
+  }
+
+  // ---------- persistence ----------
+  function saveStore() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        lang: S.lang, tab: S.tab, circuit: S.circuit, done: S.done, challenge: S.challenge
+      }));
+    } catch (e) { /* storage unavailable: keep working in memory */ }
+  }
+  function loadStore() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
+  // ---------- geometry ----------
+  const HOLE_IDS = [];
+  for (let c = 1; c <= COLS; c++) for (const r of ROWS_ALL) HOLE_IDS.push(r + c);
+  for (let c = 1; c <= COLS; c++) for (const r of RAILS) HOLE_IDS.push(r + c);
+
+  function holeXY(id) {
+    const p = E.parseHole(id);
+    if (!p) return null;
+    return [X0 + (p.col - 1) * PITCH, ROW_Y[p.row]];
+  }
+  function holeAt(x, y, radius) {
+    let best = null, bestD = (radius || 9) * (radius || 9);
+    for (const id of HOLE_IDS) {
+      const xy = holeXY(id);
+      const d = (xy[0] - x) * (xy[0] - x) + (xy[1] - y) * (xy[1] - y);
+      if (d < bestD) { bestD = d; best = id; }
+    }
+    return best;
+  }
+  function svgPoint(evt) {
+    const svg = document.getElementById('board');
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function formatOhm(R) {
+    if (R >= 1e6) return (R / 1e6) + ' MΩ';
+    if (R >= 1000) return (R / 1000) + ' kΩ';
+    return R + ' Ω';
+  }
+  function fmtI(I) {
+    const a = Math.abs(I);
+    if (a < 1e-6) return '0 A';
+    if (a < 1e-3) return (I * 1e6).toFixed(0) + ' µA';
+    return (I * 1e3).toFixed(a * 1e3 < 10 ? 1 : 0) + ' mA';
+  }
+  function fmtV(V) { return (Math.abs(V) < 0.005 ? 0 : V).toFixed(2) + ' V'; }
+  function fmtP(P) { return P < 1e-3 ? (P * 1e6).toFixed(0) + ' µW' : (P * 1e3).toFixed(P * 1e3 < 10 ? 1 : 0) + ' mW'; }
+
+  // ---------- part identity / labels ----------
+  function partLabel(part) {
+    const list = S.circuit.parts.filter(p => p.type === part.type);
+    const n = list.indexOf(part) + 1;
+    return typeName(part.type) + ' ' + n;
+  }
+  function typeName(type) {
+    const names = ui('typeNames');
+    return names && names[type] ? names[type] : type;
+  }
+  function partSummary(part) {
+    const props = part.props || {};
+    switch (part.type) {
+      case 'battery': return (props.V !== undefined ? props.V : 9) + ' V';
+      case 'resistor': return formatOhm(props.R || 220);
+      case 'led': return ui('colorNames')[props.color || 'red'];
+      case 'capacitor': return (props.uF || 100) + ' µF';
+      case 'ldr': return ui('light') + ' ' + Math.round((props.light === undefined ? 0.5 : props.light) * 100) + '%';
+      case 'ntc': return (props.temp === undefined ? 25 : props.temp) + ' °C';
+      case 'pot': return Math.round((props.pos === undefined ? 0.5 : props.pos) * 100) + '%';
+      default: return '';
+    }
+  }
+
+  // ---------- SVG drawing ----------
+  function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+  const RES_BANDS = ['#111111', '#8b4513', '#dc2626', '#f97316', '#facc15', '#16a34a', '#2563eb', '#9333ea', '#737373', '#f8fafc'];
+  function bandColors(R) {
+    const e = Math.floor(Math.log10(R));
+    const mant = R / Math.pow(10, e);
+    const d1 = Math.floor(mant + 1e-9);
+    const d2 = Math.round((mant - d1) * 10);
+    return [RES_BANDS[d1], RES_BANDS[d2], RES_BANDS[Math.max(0, e - 1)]];
+  }
+
+  function resistorSVG(x1, x2, y, fill, label, R) {
+    let g = '';
+    g += `<line x1="${x1}" y1="${y}" x2="${x1}" y2="${y - 17}" class="lead"/>`;
+    g += `<line x1="${x2}" y1="${y}" x2="${x2}" y2="${y - 17}" class="lead"/>`;
+    g += `<rect x="${x1}" y="${y - 28}" width="${x2 - x1}" height="11" rx="4" fill="${fill}"/>`;
+    if (R) {
+      const bands = bandColors(R);
+      const w = x2 - x1;
+      bands.forEach((c, i) => { g += `<rect x="${x1 + w * (0.5 + i * 0.1) - 2}" y="${y - 28}" width="4" height="11" fill="${c}"/>`; });
+    } else if (label) {
+      g += `<text x="${(x1 + x2) / 2}" y="${y - 20}" class="lbl-in" text-anchor="middle">${esc(label)}</text>`;
+    }
+    return g;
+  }
+
+  function partSVG(part, res) {
+    const pins = E.partPins(part);
+    const xy = pins.map(holeXY);
+    const props = part.props || {};
+    const info = res && res.parts ? res.parts.get(part.id) : null;
+    let g = '';
+    const burned = !!part.burned;
+    switch (part.type) {
+      case 'battery': {
+        const x = xy[0][0];
+        const top = part.row === 'P1' ? -30 : 326;
+        const bot = part.row === 'P1' ? 52 : 372;
+        g += `<rect x="${x - 12}" y="${top}" width="24" height="${bot - top}" rx="5" class="battery"/>`;
+        g += `<text x="${x}" y="${(top + bot) / 2 + 4}" class="lbl-in" text-anchor="middle">${props.V !== undefined ? props.V : 9}V</text>`;
+        g += `<text x="${x + 16}" y="${ROW_Y[part.row + '+'] + 4}" class="plus">+</text>`;
+        g += `<text x="${x + 16}" y="${ROW_Y[part.row + '-'] + 4}" class="minus">-</text>`;
+        break;
+      }
+      case 'resistor': {
+        g += resistorSVG(xy[0][0], xy[1][0], xy[0][1], '#d6b98c', '', props.R || 220);
+        if (info && Math.abs(info.I) > 1e-6) g += `<text x="${(xy[0][0] + xy[1][0]) / 2}" y="${xy[0][1] - 34}" class="cur" text-anchor="middle">${fmtI(info.I)}</text>`;
+        break;
+      }
+      case 'ldr': {
+        g += resistorSVG(xy[0][0], xy[1][0], xy[0][1], '#c9a46a', '', 0);
+        const cx = (xy[0][0] + xy[1][0]) / 2;
+        g += `<circle cx="${cx}" cy="${xy[0][1] - 40}" r="6" fill="#fde68a" stroke="#a16207"/><text x="${cx}" y="${xy[0][1] - 36}" class="lbl-in" text-anchor="middle" style="fill:#111">LDR</text>`;
+        break;
+      }
+      case 'ntc': {
+        g += resistorSVG(xy[0][0], xy[1][0], xy[0][1], '#a16207', 'NTC', 0);
+        break;
+      }
+      case 'led': {
+        const x1 = xy[0][0], x2 = xy[1][0], y = xy[0][1];
+        const cx = (x1 + x2) / 2;
+        const color = E.LED_COLORS[props.color || 'red'].hex;
+        const b = info && info.brightness ? info.brightness : 0;
+        g += `<line x1="${x1}" y1="${y}" x2="${x1}" y2="${y - 20}" class="lead"/><line x1="${x2}" y1="${y}" x2="${x2}" y2="${y - 20}" class="lead"/>`;
+        if (burned) {
+          g += `<circle cx="${cx}" cy="${y - 32}" r="9" fill="#111"/><path d="M${cx - 5} ${y - 37}L${cx + 5} ${y - 27}M${cx + 5} ${y - 37}L${cx - 5} ${y - 27}" stroke="#f87171" stroke-width="2"/>`;
+        } else {
+          if (b > 0.02) g += `<circle cx="${cx}" cy="${y - 32}" r="${14 + 6 * b}" fill="${color}" opacity="${0.25 + 0.5 * b}"/>`;
+          g += `<circle cx="${cx}" cy="${y - 32}" r="8" fill="${color}" stroke="#334155" stroke-width="1"/>`;
+        }
+        g += `<text x="${x1 - 4}" y="${y - 22}" class="sign">+</text>`;
+        if (info && Math.abs(info.I) > 1e-6 && !burned) g += `<text x="${cx}" y="${y - 52}" class="cur" text-anchor="middle">${fmtI(info.I)}</text>`;
+        break;
+      }
+      case 'diode':
+      case 'capacitor': {
+        const x1 = xy[0][0], x2 = xy[1][0], y = xy[0][1];
+        const fill = part.type === 'capacitor' ? '#1d4ed8' : '#111827';
+        g += `<line x1="${x1}" y1="${y}" x2="${x1}" y2="${y - 18}" class="lead"/><line x1="${x2}" y1="${y}" x2="${x2}" y2="${y - 18}" class="lead"/>`;
+        g += `<rect x="${x1 + 2}" y="${y - 30}" width="${x2 - x1 - 4}" height="12" rx="3" fill="${fill}"/>`;
+        if (part.type === 'diode') g += `<rect x="${x2 - 8}" y="${y - 30}" width="3" height="12" fill="#e5e7eb"/>`;
+        else g += `<text x="${(x1 + x2) / 2}" y="${y - 21}" class="lbl-in" text-anchor="middle">${props.uF ? props.uF + 'µ' : 'C'}</text>`;
+        if (burned) g += `<text x="${(x1 + x2) / 2}" y="${y - 40}" class="burnt" text-anchor="middle">×</text>`;
+        break;
+      }
+      case 'button':
+      case 'switch': {
+        const x1 = xy[0][0], x2 = xy[1][0], y = xy[0][1];
+        const pressed = part.type === 'button' ? !!props.pressed : !!props.on;
+        const dy = part.type === 'button' && pressed ? 3 : 0;
+        g += `<line x1="${x1}" y1="${y}" x2="${x1}" y2="${y - 18}" class="lead"/><line x1="${x2}" y1="${y}" x2="${x2}" y2="${y - 18}" class="lead"/>`;
+        g += `<rect x="${x1 - 6}" y="${y - 34 + dy}" width="${x2 - x1 + 12}" height="16" rx="4" fill="${pressed ? '#4b5563' : '#374151'}"/>`;
+        if (part.type === 'switch') {
+          const kx = pressed ? x2 - 2 : x1 + 2;
+          g += `<circle cx="${kx}" cy="${y - 26}" r="5" fill="${pressed ? '#22c55e' : '#f87171'}"/>`;
+        } else {
+          g += `<circle cx="${(x1 + x2) / 2}" cy="${y - 26 + dy}" r="4" fill="#e5e7eb"/>`;
+        }
+        break;
+      }
+      case 'npn': {
+        const [x0, x1b, x2] = [xy[0][0], xy[1][0], xy[2][0]];
+        const y = xy[0][1];
+        g += `<line x1="${x0}" y1="${y}" x2="${x0}" y2="${y - 16}" class="lead"/><line x1="${x1b}" y1="${y}" x2="${x1b}" y2="${y - 22}" class="lead"/><line x1="${x2}" y1="${y}" x2="${x2}" y2="${y - 16}" class="lead"/>`;
+        g += `<circle cx="${x1b}" cy="${y - 30}" r="14" fill="#111827"/><text x="${x1b}" y="${y - 27}" class="lbl-in" text-anchor="middle">NPN</text>`;
+        g += `<text x="${x0 + 4}" y="${y - 2}" class="sign">B</text><text x="${x1b + 4}" y="${y - 2}" class="sign">C</text><text x="${x2 + 4}" y="${y - 2}" class="sign">E</text>`;
+        break;
+      }
+      case 'relay': {
+        const xs = xy.map(p => p[0]);
+        const y = xy[0][1];
+        const left = xs[0] - 7, right = xs[4] + 7;
+        xs.forEach(x => { g += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y - 18}" class="lead"/>`; });
+        const closed = !!(part.state && part.state.closed);
+        g += `<rect x="${left}" y="${y - 46}" width="${right - left}" height="28" rx="5" fill="#1f2937"/>`;
+        g += `<text x="${(left + right) / 2}" y="${y - 34}" class="lbl-in" text-anchor="middle">RELAY</text>`;
+        g += `<circle cx="${right - 10}" cy="${y - 26}" r="4" fill="${closed ? '#22c55e' : '#6b7280'}"/>`;
+        g += `<text x="${xs[2]}" y="${y - 2}" class="sign">C</text><text x="${xs[3]}" y="${y - 2}" class="sign">N</text><text x="${xs[4]}" y="${y - 2}" class="sign">-</text>`;
+        break;
+      }
+      case 'pot': {
+        const xs = xy.map(p => p[0]);
+        const y = xy[0][1];
+        const pos = props.pos === undefined ? 0.5 : props.pos;
+        xs.forEach(x => { g += `<line x1="${x}" y1="${y}" x2="${x}" y2="${y - 18}" class="lead"/>`; });
+        g += `<rect x="${xs[0] - 8}" y="${y - 42}" width="${xs[2] - xs[0] + 16}" height="26" rx="6" fill="#1f2937"/>`;
+        g += `<line x1="${xs[0]}" y1="${y - 28}" x2="${xs[2]}" y2="${y - 28}" stroke="#94a3b8" stroke-width="2"/>`;
+        const kx = xs[0] + (xs[2] - xs[0]) * (1 - pos);
+        g += `<circle cx="${kx}" cy="${y - 28}" r="5" fill="#fde047"/>`;
+        break;
+      }
+      default: break;
+    }
+    return g;
+  }
+
+  function wireSVG(w, index) {
+    const a = holeXY(w.a), b = holeXY(w.b);
+    if (!a || !b) return '';
+    const color = WIRE_COLORS[index % WIRE_COLORS.length];
+    const mx = (a[0] + b[0]) / 2;
+    const my = Math.min(a[1], b[1]) - 26 - Math.abs(a[0] - b[0]) * 0.05;
+    const sel = S.selected === w.id ? ' selected' : '';
+    return `<path d="M${a[0]} ${a[1]} Q${mx} ${my} ${b[0]} ${b[1]}" class="wire${sel}" stroke="${color}" data-wire="${w.id}"/>`;
+  }
+
+  function boardBase() {
+    let g = '';
+    g += `<rect x="6" y="-30" width="602" height="394" rx="12" class="board-bg"/>`;
+    // rails
+    const rail = (row, color) => {
+      g += `<line x1="${X0 - 14}" y1="${ROW_Y[row]}" x2="${X0 + (COLS - 1) * PITCH + 14}" y2="${ROW_Y[row]}" stroke="${color}" stroke-width="1.5" opacity=".6"/>`;
+    };
+    rail('P1+', '#dc2626'); rail('P1-', '#2563eb'); rail('P2+', '#dc2626'); rail('P2-', '#2563eb');
+    g += `<text x="16" y="${ROW_Y['P1+'] + 4}" class="rail-sign" fill="#dc2626">+</text><text x="16" y="${ROW_Y['P1-'] + 4}" class="rail-sign" fill="#2563eb">-</text>`;
+    g += `<text x="16" y="${ROW_Y['P2+'] + 4}" class="rail-sign" fill="#dc2626">+</text><text x="16" y="${ROW_Y['P2-'] + 4}" class="rail-sign" fill="#2563eb">-</text>`;
+    // column numbers
+    for (let c = 5; c <= COLS; c += 5) g += `<text x="${X0 + (c - 1) * PITCH}" y="-14" class="colnum" text-anchor="middle">${c}</text>`;
+    // row letters
+    for (const r of ROWS_ALL) g += `<text x="30" y="${ROW_Y[r] + 4}" class="rowletter" text-anchor="middle">${r}</text>`;
+    g += `<text x="307" y="190" class="channel" text-anchor="middle">a-e · f-j</text>`;
+    // holes
+    for (const id of HOLE_IDS) {
+      const xy = holeXY(id);
+      g += `<circle cx="${xy[0]}" cy="${xy[1]}" r="3.4" class="hole" data-hole="${id}"/>`;
+    }
+    return g;
+  }
+
+  function renderBoard() {
+    const svg = document.getElementById('board');
+    const res = S.simulated ? S.result : null;
+    let g = boardBase();
+    S.circuit.wires.forEach((w, i) => { g += wireSVG(w, i); });
+    // pins highlight
+    const pinned = new Set();
+    S.circuit.parts.forEach(p => E.partPins(p).forEach(h => pinned.add(h)));
+    for (const h of pinned) {
+      const xy = holeXY(h);
+      if (xy) g += `<circle cx="${xy[0]}" cy="${xy[1]}" r="2.2" class="pin"/>`;
+    }
+    S.circuit.parts.forEach(p => {
+      const sel = S.selected === p.id ? ' selected-part' : '';
+      g += `<g class="part${sel}" data-part="${p.id}">${partSVG(p, res)}</g>`;
+    });
+    if (S.pending) {
+      const xy = holeXY(S.pending);
+      if (xy) g += `<circle cx="${xy[0]}" cy="${xy[1]}" r="7" class="pending"/>`;
+    }
+    if (S.measure) {
+      const xy = holeXY(S.measure.hole);
+      if (xy) {
+        const txt = S.measure.v === null ? ui('measureNone') : fmtV(S.measure.v);
+        g += `<circle cx="${xy[0]}" cy="${xy[1]}" r="7" class="measure"/>`;
+        g += `<text x="${xy[0] + 10}" y="${xy[1] - 10}" class="measure-txt">${esc(S.measure.v === null ? '-' : txt)}</text>`;
+      }
+    }
+    svg.innerHTML = g;
+    svg.setAttribute('aria-label', ui('appTitle'));
+  }
+
+  // ---------- circuit editing ----------
+  function pushUndo() {
+    S.undo.push(JSON.stringify(S.circuit));
+    if (S.undo.length > 80) S.undo.shift();
+  }
+  function nextId(prefix) {
+    let n = 1;
+    const used = new Set(S.circuit.parts.map(p => p.id).concat(S.circuit.wires.map(w => w.id)));
+    while (used.has(prefix + n)) n++;
+    return prefix + n;
+  }
+  function placePart(type, hole) {
+    const chk = E.checkPlacement(S.circuit, type, hole);
+    if (!chk.ok) {
+      const map = { occupied: 'errOccupied', offBoard: 'errOffBoard', needsRail: 'errNeedsRail', noRail: 'errNoRail', badHole: 'errBadHole' };
+      toast(ui(map[chk.reason] || 'errBadHole'));
+      return false;
+    }
+    pushUndo();
+    const part = { id: nextId('p'), type: type, row: chk.row, col: chk.col, props: Object.assign({}, E.TYPES[type].defaults), burned: false };
+    S.circuit.parts.push(part);
+    S.selected = part.id;
+    afterEdit();
+    return true;
+  }
+  function addWire(a, b) {
+    if (a === b) return;
+    if (S.circuit.wires.some(w => (w.a === a && w.b === b) || (w.a === b && w.b === a))) return;
+    pushUndo();
+    S.circuit.wires.push({ id: nextId('w'), a: a, b: b });
+    afterEdit();
+  }
+  function removeSelected() {
+    if (!S.selected) return;
+    pushUndo();
+    S.circuit.parts = S.circuit.parts.filter(p => p.id !== S.selected);
+    S.circuit.wires = S.circuit.wires.filter(w => w.id !== S.selected);
+    S.selected = null;
+    afterEdit();
+  }
+  // Burns are permanent: an undo never un-burns a part that is burned now.
+  function undo() {
+    if (!S.undo.length) return;
+    const next = JSON.parse(S.undo.pop());
+    const burnedIds = new Set(S.circuit.parts.filter(p => p.burned).map(p => p.id));
+    next.parts.forEach(p => { if (burnedIds.has(p.id)) p.burned = true; });
+    S.circuit = next;
+    S.selected = null;
+    afterEdit();
+  }
+  function afterEdit() {
+    if (S.simulated) runSim(false);
+    saveStore();
+    renderLab();
+  }
+  function runSim(announce) {
+    S.result = E.simulate(S.circuit);
+    S.simulated = true;
+    if (announce) {
+      const r = S.result;
+      if (r.noPower) setStatus(ui('noPower'), 'warn');
+      else if (r.warnings.some(w => w.code === 'burn')) setStatus(ui('burnDone') + r.warnings.filter(w => w.code === 'burn').length, 'bad');
+      else if (r.shorted) setStatus(ui('shorted'), 'bad');
+      else if (!r.converged) setStatus(ui('noConverge'), 'warn');
+      else setStatus(ui('ok') + ' · I = ' + fmtI(r.batteryCurrent), 'good');
+    }
+    if (S.result && S.result.burnedNow && S.result.burnedNow.length) saveStore();
+  }
+  function setStatus(text, kind) {
+    const el = document.getElementById('status');
+    el.textContent = text;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  let toastTimer = null;
+  function toast(text) {
+    const t = document.getElementById('toast');
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  // ---------- pointer interaction ----------
+  function hitPart(p) {
+    for (const part of S.circuit.parts) {
+      const xy = E.partPins(part).map(holeXY);
+      const xs = xy.map(q => q[0]), ys = xy.map(q => q[1]);
+      let minX = Math.min.apply(null, xs) - 12, maxX = Math.max.apply(null, xs) + 12;
+      let minY = Math.min.apply(null, ys) - 50, maxY = Math.max.apply(null, ys) + 14;
+      if (part.type === 'battery') { minY = part.row === 'P1' ? -32 : 322; maxY = part.row === 'P1' ? 56 : 376; }
+      if (p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY) return part;
+    }
+    return null;
+  }
+  function hitWire(p) {
+    for (const w of S.circuit.wires) {
+      const a = holeXY(w.a), b = holeXY(w.b);
+      if (!a || !b) continue;
+      const mx = (a[0] + b[0]) / 2, my = Math.min(a[1], b[1]) - 26 - Math.abs(a[0] - b[0]) * 0.05;
+      for (let t = 0; t <= 1.0001; t += 0.05) {
+        const x = (1 - t) * (1 - t) * a[0] + 2 * (1 - t) * t * mx + t * t * b[0];
+        const y = (1 - t) * (1 - t) * a[1] + 2 * (1 - t) * t * my + t * t * b[1];
+        if ((x - p.x) * (x - p.x) + (y - p.y) * (y - p.y) < 64) return w;
+      }
+    }
+    return null;
+  }
+
+  function onDown(e) {
+    if (e.button && e.button !== 0) return;
+    const p = svgPoint(e);
+    const part = hitPart(p);
+    const wire = part ? null : hitWire(p);
+    const hole = holeAt(p.x, p.y, 10);
+    S.down = { x: p.x, y: p.y, part: part, wire: wire, hole: hole, moved: false, startHole: hole, pointerId: e.pointerId };
+    if (S.tool === 'select' && part) {
+      S.drag = { id: part.id, origCol: part.col, origRow: part.row, startCol: hole ? E.parseHole(hole).col : part.col, startRow: part.row, changed: false };
+      if (part.type === 'button') {
+        part.props.pressed = true;
+        if (S.simulated) runSim(false);
+        renderBoard();
+      }
+      try { document.getElementById('board').setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    }
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    if (!S.down) return;
+    const p = svgPoint(e);
+    const dx = p.x - S.down.x, dy = p.y - S.down.y;
+    if (!S.down.moved && dx * dx + dy * dy > 36) S.down.moved = true;
+    if (S.drag && S.down.moved) {
+      const part = S.circuit.parts.find(q => q.id === S.drag.id);
+      const h = holeAt(p.x, p.y, 14);
+      if (part && h) {
+        const hp = E.parseHole(h);
+        const isRailHole = hp.row[0] === 'P';
+        if (isRailHole === (part.type === 'battery')) {
+          const newCol = hp.col - (S.drag.startCol - S.drag.origCol);
+          const others = { parts: S.circuit.parts.filter(q => q.id !== part.id), wires: [] };
+          const chk = E.checkPlacement(others, part.type, hp.row + newCol);
+          if (chk.ok && (part.col !== chk.col || part.row !== chk.row)) {
+            part.col = chk.col; part.row = chk.row; S.drag.changed = true;
+            renderBoard();
+          }
+        }
+      }
+    }
+    e.preventDefault();
+  }
+
+  function onUp(e) {
+    const down = S.down;
+    S.down = null;
+    if (!down) return;
+    const drag = S.drag;
+    S.drag = null;
+    const p = svgPoint(e);
+    if (drag && drag.changed) {
+      // the part already moved in onMove; store the undo state from before the move
+      pushUndo();
+      S.undo[S.undo.length - 1] = JSON.stringify(Object.assign({}, S.circuit, { parts: S.circuit.parts.map(q => (q.id === drag.id ? Object.assign({}, q, { col: drag.origCol, row: drag.origRow }) : q)) }));
+      S.selected = drag.id;
+      afterEdit();
+      return;
+    }
+    const part = down.part;
+    if (part && part.type === 'button') {
+      part.props.pressed = false;
+      if (S.simulated) runSim(false);
+      saveStore();
+    }
+    if (down.moved) { renderLab(); return; }
+    // tap
+    const hole = holeAt(p.x, p.y, 10);
+    switch (S.tool) {
+      case 'select': {
+        if (part) {
+          if (part.type === 'switch') {
+            pushUndo();
+            part.props.on = !part.props.on;
+            if (S.simulated) runSim(false);
+            S.selected = part.id;
+            afterEdit();
+          } else {
+            S.selected = part.id;
+            renderLab();
+          }
+        } else if (down.wire) {
+          S.selected = down.wire.id;
+          renderLab();
+        } else {
+          S.selected = null;
+          renderLab();
+        }
+        break;
+      }
+      case 'place': {
+        if (hole) placePart(S.partType, hole);
+        else toast(ui('placeHint'));
+        break;
+      }
+      case 'wire': {
+        if (!hole) { toast(ui('wireFrom')); break; }
+        if (!S.pending) { S.pending = hole; renderLab(); setStatus(ui('wireTo'), ''); }
+        else {
+          const from = S.pending;
+          S.pending = null;
+          addWire(from, hole);
+        }
+        break;
+      }
+      case 'measure': {
+        if (!hole) break;
+        const v = S.simulated && S.result ? S.result.nodeVoltage(hole) : null;
+        S.measure = { hole: hole, v: v };
+        if (!S.simulated) setStatus(ui('simulate') + ' →', 'warn');
+        renderBoard();
+        break;
+      }
+      case 'delete': {
+        if (part) { S.selected = part.id; removeSelected(); }
+        else if (down.wire) { S.selected = down.wire.id; removeSelected(); }
+        break;
+      }
+      default: break;
+    }
+    e.preventDefault();
+  }
+
+  function onCancel() { S.down = null; S.drag = null; }
+
+  // ---------- rendering: toolbar, inspector, readout ----------
+  function renderToolbar() {
+    const tools = [
+      ['select', 'select'], ['wire', 'wire'], ['measure', 'measure'], ['delete', 'del']
+    ];
+    const g1 = document.getElementById('groupTools');
+    g1.innerHTML = `<span class="label">${esc(ui('select'))}</span>` + tools.map(([id, key]) =>
+      `<button type="button" data-tool="${id}" aria-pressed="${S.tool === id}">${esc(ui(key))}</button>`).join('');
+    const g2 = document.getElementById('groupParts');
+    g2.innerHTML = TOOL_PART_TYPES.map(t =>
+      `<button type="button" data-part="${t}" aria-pressed="${S.tool === 'place' && S.partType === t}">${esc(ui('typeNames')[t])}</button>`).join('');
+    const hints = {
+      select: ui('selectHint'), wire: S.pending ? ui('wireTo') : ui('wireFrom'),
+      measure: ui('measureHint'), delete: ui('del') + ': ' + ui('selectHint'),
+      place: ui('placeHint')
+    };
+    document.getElementById('toolHint').textContent = hints[S.tool] || '';
+    const ex = document.getElementById('examples');
+    const cur = ex.value;
+    ex.innerHTML = `<option value="">${esc(ui('examples'))}</option>` + LESSONS.map((l, i) => `<option value="${i}">${esc(L(l.title))}</option>`).join('');
+    ex.value = cur || '';
+    document.getElementById('btnUndo').disabled = S.undo.length === 0;
+  }
+
+  function renderInspector() {
+    const title = document.getElementById('inspectTitle');
+    const body = document.getElementById('inspectBody');
+    const part = S.circuit.parts.find(p => p.id === S.selected);
+    const wire = S.circuit.wires.find(w => w.id === S.selected);
+    if (part) {
+      title.textContent = partLabel(part);
+      const props = part.props || {};
+      let h = '';
+      if (part.burned) h += `<p><span class="tag burn">${esc(ui('burnedHint'))}</span></p>`;
+      const select = (key, opts, val, fmt) => `<label>${esc(ui(key))}<br><select data-prop="${key}">` + opts.map(o => `<option value="${o}" ${String(o) === String(val) ? 'selected' : ''}>${esc(fmt(o))}</option>`).join('') + '</select></label>';
+      const range = (key, val, max) => `<label>${esc(ui(key))}: <span data-out="${key}">${val}</span><input type="range" min="0" max="${max}" step="1" value="${val}" data-range="${key}"></label>`;
+      switch (part.type) {
+        case 'battery': h += select('value', E.BATTERY_VOLTAGES, props.V !== undefined ? props.V : 9, v => v + ' V'); break;
+        case 'resistor': h += select('value', E.RESISTOR_VALUES, props.R || 220, formatOhm); break;
+        case 'led': h += select('color', Object.keys(E.LED_COLORS), props.color || 'red', k => ui('colorNames')[k]); break;
+        case 'capacitor': h += select('value', [1, 10, 47, 100, 470], props.uF || 100, v => v + ' µF'); break;
+        case 'button': h += `<label><input type="checkbox" data-check="pressed" ${props.pressed ? 'checked' : ''}> ${esc(ui('pressed'))}</label>`; break;
+        case 'switch': h += `<label><input type="checkbox" data-check="on" ${props.on ? 'checked' : ''}> ${esc(ui('on'))}</label>`; break;
+        case 'ldr': h += range('light', Math.round((props.light === undefined ? 0.5 : props.light) * 100), 100); break;
+        case 'ntc': h += range('temp', props.temp === undefined ? 25 : props.temp, 100); break;
+        case 'pot': h += range('pos', Math.round((props.pos === undefined ? 0.5 : props.pos) * 100), 100); break;
+        default: break;
+      }
+      h += `<div class="row"><button type="button" data-act="delete-part">${esc(ui('del'))}</button></div>`;
+      body.innerHTML = h;
+    } else if (wire) {
+      title.textContent = ui('wire') + ' · ' + wire.a + ' → ' + wire.b;
+      body.innerHTML = `<div class="row"><button type="button" data-act="delete-part">${esc(ui('del'))}</button></div>`;
+    } else {
+      title.textContent = ui('inspect');
+      body.innerHTML = `<p class="hint">${esc(ui('none'))}</p>`;
+    }
+  }
+
+  function renderReadout() {
+    const box = document.getElementById('readout');
+    document.getElementById('readoutTitle').textContent = ui('status');
+    document.getElementById('dcNote').textContent = ui('dcNote');
+    if (!S.simulated || !S.result) {
+      box.innerHTML = `<p class="hint">${esc(ui('simulate'))}</p>`;
+      return;
+    }
+    const r = S.result;
+    let h = '';
+    const warn = [];
+    if (r.noPower) warn.push(ui('noPower'));
+    if (r.shorted) warn.push(ui('shorted'));
+    if (!r.converged) warn.push(ui('noConverge'));
+    r.warnings.forEach(w => { if (w.code === 'relayLoop') warn.push(ui('relayLoop')); });
+    if (warn.length) h += warn.map(t => `<p class="status warn">${esc(t)}</p>`).join('');
+    if (!r.noPower) {
+      h += `<table class="readout"><thead><tr><th></th><th>${esc(ui('current'))}</th><th>${esc(ui('voltage'))}</th><th>${esc(ui('power'))}</th></tr></thead><tbody>`;
+      S.circuit.parts.forEach(part => {
+        const info = r.parts.get(part.id);
+        if (!info) return;
+        let tag = '';
+        if (part.burned) tag = `<span class="tag burn">${esc(ui('burnedNames'))}</span>`;
+        else if (part.type === 'relay') tag = `<span class="tag ${part.state && part.state.closed ? 'on' : 'off'}">${esc(part.state && part.state.closed ? ui('closedWord') : ui('openWord'))}</span>`;
+        else if (part.type === 'led' || part.type === 'npn' || part.type === 'button' || part.type === 'switch') tag = `<span class="tag ${info.on ? 'on' : 'off'}">${esc(info.on ? ui('on') : ui('off'))}</span>`;
+        h += `<tr><td>${esc(partLabel(part))}<br>${tag}</td><td class="num">${fmtI(info.I)}</td><td class="num">${fmtV(info.V || 0)}</td><td class="num">${fmtP(info.P || 0)}</td></tr>`;
+      });
+      h += '</tbody></table>';
+    }
+    box.innerHTML = h;
+  }
+
+  function renderLab() {
+    renderToolbar();
+    renderBoard();
+    renderInspector();
+    renderReadout();
+    const rep = document.getElementById('repairPanel');
+    rep.hidden = S.tab !== 'repair';
+    if (S.tab === 'repair') renderRepairPanel();
+    document.getElementById('btnSimulate').textContent = S.simulated ? ui('resimulate') : ui('simulate');
+    document.getElementById('btnClear').textContent = ui('clear');
+    document.getElementById('btnUndo').textContent = ui('undo');
+    if (S.simulated && S.result) {
+      const r = S.result;
+      if (r.noPower) setStatus(ui('noPower'), 'warn');
+      else if (r.shorted) setStatus(ui('shorted'), 'bad');
+      else if (r.warnings.some(w => w.code === 'burn')) setStatus(ui('burnDone') + S.circuit.parts.filter(p => p.burned).length, 'bad');
+      else setStatus(ui('ok') + ' · I = ' + fmtI(r.batteryCurrent), 'good');
+    } else {
+      setStatus('', '');
+    }
+  }
+
+  // ---------- repair (broken circuits) ----------
+  function challengeTitle(ch) { return L(ch.title); }
+  function describeScenario(sc) {
+    const parts = [];
+    const inp = sc.in || {};
+    if (inp.button !== undefined) parts.push(ui('inputButton') + ': ' + (inp.button ? ui('yes') : ui('no')));
+    if (inp.switch !== undefined) parts.push(ui('inputSwitch') + ': ' + (inp.switch ? ui('yes') : ui('no')));
+    if (inp.ldr !== undefined) parts.push(ui('inputLdr') + ': ' + Math.round(inp.ldr * 100) + '%');
+    if (inp.ntc !== undefined) parts.push(ui('inputNtc') + ': ' + inp.ntc + ' °C');
+    if (inp.pot !== undefined) parts.push(ui('inputPot') + ': ' + Math.round(inp.pot * 100) + '%');
+    const exp = [];
+    Object.keys(sc.expect || {}).forEach(k => {
+      const m = /^(led|relay|npn)(\d*)$/.exec(k);
+      if (!m) return;
+      const name = m[1] === 'led' ? ui('expLed') : m[1] === 'relay' ? ui('expRelay') : ui('expNpn');
+      const num = m[2] ? ' ' + m[2] : '';
+      const v = sc.expect[k];
+      const word = v === 'on' ? ui('expOn') : v === 'off' ? ui('expOff') : v === 'closed' ? ui('expClosed') : v === 'open' ? ui('expOpen') : v === 'saturated' ? ui('expSaturated') : v;
+      exp.push(name + num + ' ' + word);
+    });
+    return { inputs: parts, expects: exp };
+  }
+  function gotWord(got) {
+    const map = { on: ui('expOn'), off: ui('expOff'), closed: ui('expClosed'), open: ui('expOpen'), saturated: ui('expSaturated') };
+    return map[got] || '-';
+  }
+  function loadChallenge(id) {
+    const ch = CHALLENGES.find(c => c.id === id);
+    if (!ch) return;
+    S.challenge = id;
+    S.challengeResult = null;
+    S.circuit = E.buildCircuit(ch.setup);
+    S.undo = [];
+    S.selected = null;
+    S.pending = null;
+    S.simulated = false;
+    S.result = null;
+    S.measure = null;
+    saveStore();
+  }
+  function nextChallengeId() {
+    const idx = CHALLENGES.findIndex(c => c.id === S.challenge);
+    for (let i = 1; i <= CHALLENGES.length; i++) {
+      const c = CHALLENGES[(idx + i) % CHALLENGES.length];
+      if (!S.done[c.id]) return c.id;
+    }
+    return null;
+  }
+  function checkChallenge() {
+    const ch = CHALLENGES.find(c => c.id === S.challenge);
+    if (!ch) return;
+    S.simulated = true;
+    S.result = E.simulate(S.circuit);
+    const res = E.evaluateScenarios(S.circuit, ch.scenarios);
+    S.challengeResult = res;
+    if (res.pass) {
+      S.done[ch.id] = true;
+      toast(ui('repairPass'));
+    }
+    saveStore();
+    renderLab();
+  }
+  function renderRepairPanel() {
+    const rep = document.getElementById('repairPanel');
+    const ch = CHALLENGES.find(c => c.id === S.challenge) || CHALLENGES[0];
+    const doneCount = CHALLENGES.filter(c => S.done[c.id]).length;
+    let h = `<h2>${esc(ui('tabRepair'))}</h2>`;
+    h += `<p class="hint">${esc(ui('repairIntro'))}</p>`;
+    h += `<div class="progress" aria-label="${esc(ui('repairProgress'))}"><span style="width:${Math.round(doneCount / CHALLENGES.length * 100)}%"></span></div>`;
+    h += `<p class="hint">${esc(ui('repairProgress'))}: ${doneCount} ${esc(ui('progressOf'))} ${CHALLENGES.length}</p>`;
+    h += `<div class="repair-list">` + CHALLENGES.map((c, i) => `<button type="button" data-challenge="${c.id}" aria-current="${c.id === ch.id}"><span>${i + 1}. ${esc(challengeTitle(c))}</span><span class="tag ${S.done[c.id] ? 'on' : 'off'}">${esc(S.done[c.id] ? ui('repairStatusOk') : ui('repairStatusTodo'))}</span></button>`).join('') + `</div>`;
+    h += `<div class="scenario"><strong>${esc(challengeTitle(ch))}</strong><p style="margin:6px 0 0">${esc(L(ch.symptom))}</p></div>`;
+    h += `<p><strong>${esc(ui('repairGoal'))}</strong></p>`;
+    ch.scenarios.forEach((sc, i) => {
+      const d = describeScenario(sc);
+      const r = S.challengeResult ? S.challengeResult.results[i] : null;
+      const cls = r ? (r.pass ? 'ok' : 'fail') : '';
+      h += `<div class="scenario ${cls}"><strong>${esc(ui('repairScenario'))} ${i + 1}</strong><ul>` +
+        d.inputs.map(x => `<li>${esc(x)}</li>`).join('') +
+        d.expects.map(x => `<li>${esc(x)}</li>`).join('') +
+        `</ul>`;
+      if (r) {
+        h += `<ul>` + r.checks.map(c => `<li>${c.ok ? '✓' : '✗'} ${esc(c.key)}: ${esc(ui('scenarioGot'))} ${esc(gotWord(c.got))}${c.ok ? '' : ' (' + esc(ui('scenarioWant')) + ' ' + esc(gotWord(c.want)) + ')'}</li>`).join('') +
+          (r.burned.length ? `<li>✗ ${esc(ui('damaged'))}</li>` : '') +
+          (r.shorted ? `<li>✗ ${esc(ui('noBurnShort'))}</li>` : '') + `</ul>`;
+      }
+      h += `</div>`;
+    });
+    if (S.challengeResult) {
+      if (S.challengeResult.pass) {
+        const nxt = nextChallengeId();
+        h += `<div class="banner good"><strong>${esc(ui('repairPass'))}</strong></div>`;
+        if (nxt) h += `<div class="row" style="margin-top:8px"><button type="button" class="primary" data-act="next-challenge">${esc(ui('repairNext'))}</button></div>`;
+        else h += `<p class="banner good">${esc(ui('repairDone'))}</p>`;
+      } else {
+        h += `<div class="banner bad">${esc(ui('repairFail'))}</div>`;
+      }
+    }
+    h += `<div class="row" style="margin-top:10px"><button type="button" class="primary" data-act="check">${esc(ui('repairCheck'))}</button>` +
+      `<button type="button" data-act="reset-challenge">${esc(ui('repairReset'))}</button></div>`;
+    h += `<hr style="border:0;border-top:1px solid var(--line);margin:12px 0">`;
+    rep.innerHTML = h;
+  }
+
+  // ---------- lessons ----------
+  let lessonOpen = false;
+  function renderLessons() {
+    const root = document.getElementById('lessonsRoot');
+    if (!lessonOpen) {
+      root.innerHTML = `<p class="hint" style="margin:0 0 12px">${esc(ui('lessonsIntro'))}</p>` +
+        `<div class="lesson-grid">` + LESSONS.map((l, i) => `
+          <article class="panel lesson-card">
+            <div class="num">${esc(ui('lessonNumber'))} ${i + 1}</div>
+            <h3>${esc(L(l.title))}</h3>
+            <p>${esc(L(l.body).slice(0, 1)[0].slice(0, 160))}…</p>
+            <div class="row"><button type="button" data-lesson="${i}">${esc(ui('lessonNumber'))} ${i + 1}</button></div>
+          </article>`).join('') + `</div>`;
+      return;
+    }
+    const l = LESSONS[S.lesson];
+    const paras = L(l.body);
+    root.innerHTML = `
+      <article class="panel lesson-body">
+        <div class="num" style="color:var(--muted)">${esc(ui('lessonNumber'))} ${S.lesson + 1} / ${LESSONS.length}</div>
+        <h2 style="margin:4px 0 12px">${esc(L(l.title))}</h2>
+        ${paras.map(p => `<p>${esc(p)}</p>`).join('')}
+        <div class="keybox"><strong>${esc(ui('lessonKey'))}</strong>${esc(L(l.key))}</div>
+        <div class="lesson-nav">
+          <button type="button" data-act="lesson-prev" ${S.lesson === 0 ? 'disabled' : ''}>${esc(ui('lessonPrev'))}</button>
+          <button type="button" class="primary" data-act="lesson-load" ${l.preset ? '' : 'disabled'}>${esc(ui('lessonLoad'))}</button>
+          <button type="button" data-act="lesson-next" ${S.lesson === LESSONS.length - 1 ? 'disabled' : ''}>${esc(ui('lessonNext'))}</button>
+        </div>
+        <p class="hint"><button type="button" data-act="lessons-back" style="min-height:36px">←</button></p>
+      </article>`;
+  }
+
+  // ---------- quiz cards ----------
+  function deckCards() {
+    const idx = [];
+    CARDS.forEach((c, i) => { if (S.deck.cat === 'all' || c.c === S.deck.cat) idx.push(i); });
+    return idx;
+  }
+  function shuffleDeck() {
+    const idx = deckCards();
+    for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = idx[i]; idx[i] = idx[j]; idx[j] = t; }
+    S.deck.order = idx;
+    S.deck.index = 0;
+    S.deck.answered = null;
+    S.deck.score = 0;
+    S.deck.correct = 0;
+    S.deck.done = false;
+  }
+  function catName(c) {
+    const names = {
+      basics: { ro: 'Bazele', en: 'Basics', sr: 'Osnove' },
+      ohm: { ro: 'Ohm și putere', en: 'Ohm and power', sr: 'Om i snaga' },
+      led: { ro: 'LED-uri', en: 'LEDs', sr: 'LED diode' },
+      switches: { ro: 'Butoane și tranzistori', en: 'Switches and transistors', sr: 'Prekidači i tranzistori' },
+      relays: { ro: 'Relee', en: 'Relays', sr: 'Releji' },
+      sensors: { ro: 'Senzori', en: 'Sensors', sr: 'Senzori' },
+      safety: { ro: 'Siguranță și reparații', en: 'Safety and repair', sr: 'Bezbednost i popravke' }
+    };
+    return L(names[c] || { ro: c, en: c, sr: c });
+  }
+  function renderCards() {
+    const root = document.getElementById('cardsRoot');
+    if (!S.deck.order.length && !S.deck.done) shuffleDeck();
+    const chips = [['all', { ro: 'Toate', en: 'All', sr: 'Sve' }]].concat(CATEGORIES.map(c => [c, null]));
+    let h = `<p class="hint" style="margin:0 0 10px">${esc(ui('cardsIntro'))}</p>`;
+    h += `<div class="chips" role="group" aria-label="${esc(ui('cardsCategory'))}">` + chips.map(([c, lab]) =>
+      `<button type="button" data-cat="${c}" aria-pressed="${S.deck.cat === c}">${esc(lab ? L(lab) : catName(c))}</button>`).join('') + `</div>`;
+    const total = S.deck.order.length;
+    if (S.deck.done) {
+      h += `<article class="panel"><h2>${esc(ui('cardsDone'))}</h2><p style="font-size:1.2rem">${esc(ui('cardsScore'))}: <strong>${S.deck.correct} / ${total}</strong></p>` +
+        `<div class="row"><button type="button" class="primary" data-act="cards-restart">${esc(ui('cardsRestart'))}</button></div></article>`;
+      root.innerHTML = h;
+      return;
+    }
+    if (!total) { root.innerHTML = h; return; }
+    const card = CARDS[S.deck.order[S.deck.index]];
+    const q = card[srKey(S.lang)];
+    const answered = S.deck.answered;
+    h += `<article class="panel">
+      <div class="num" style="color:var(--muted)">${esc(ui('cardsCategory'))}: ${esc(catName(card.c))} · ${esc(ui('cardsProgress'))} ${S.deck.index + 1} / ${total} · ${esc(ui('cardsScore'))} ${S.deck.correct}</div>
+      <div class="progress"><span style="width:${Math.round((S.deck.index) / total * 100)}%"></span></div>
+      <p class="card-q">${esc(L(q.q))}</p>
+      <div class="options">` + q.o.map((opt, i) => {
+        let cls = '';
+        if (answered !== null) {
+          if (i === card.a) cls = 'correct';
+          else if (i === answered) cls = 'wrong';
+        }
+        return `<button type="button" class="${cls}" data-opt="${i}" ${answered !== null ? 'disabled' : ''}>${esc(L(opt))}</button>`;
+      }).join('') + `</div>`;
+    if (answered !== null) {
+      h += `<div class="explain"><strong>${esc(answered === card.a ? ui('cardsCorrect') : ui('cardsWrong'))}</strong> ${esc(L(q.e))}</div>` +
+        `<div class="row" style="margin-top:12px"><button type="button" class="primary" data-act="cards-next">${esc(ui('cardsNext'))}</button></div>`;
+    }
+    h += `</article>`;
+    root.innerHTML = h;
+  }
+  function cardOption(i) {
+    if (S.deck.answered !== null) return;
+    const card = CARDS[S.deck.order[S.deck.index]];
+    S.deck.answered = i;
+    if (i === card.a) { S.deck.score++; S.deck.correct++; }
+    renderCards();
+  }
+  function cardNext() {
+    S.deck.answered = null;
+    S.deck.index++;
+    if (S.deck.index >= S.deck.order.length) S.deck.done = true;
+    renderCards();
+  }
+
+  // ---------- tabs and events ----------
+  function setTab(tab) {
+    S.tab = tab;
+    if (tab === 'repair' && !S.challenge) {
+      const first = CHALLENGES.find(c => !S.done[c.id]) || CHALLENGES[0];
+      loadChallenge(first.id);
+    }
+    document.querySelectorAll('[role="tab"]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+    document.querySelectorAll('section.view').forEach(s => s.classList.remove('active'));
+    const v = tab === 'lessons' ? 'view-lessons' : tab === 'cards' ? 'view-cards' : 'view-lab';
+    document.getElementById(v).classList.add('active');
+    saveStore();
+    renderAll();
+  }
+
+  function applyStaticText() {
+    document.documentElement.lang = S.lang === 'sr-latn' ? 'sr-Latn' : (S.lang === 'sr-cyrl' ? 'sr-Cyrl' : S.lang);
+    document.getElementById('appTitle').textContent = ui('appTitle');
+    document.getElementById('tagline').textContent = ui('tagline');
+    document.getElementById('tabBtnLab').textContent = ui('tabLab');
+    document.getElementById('tabBtnLessons').textContent = ui('tabLessons');
+    document.getElementById('tabBtnCards').textContent = ui('tabCards');
+    document.getElementById('tabBtnRepair').textContent = ui('tabRepair');
+    document.getElementById('footerCredits').textContent = ui('credits');
+    document.getElementById('footerPrivacy').textContent = ui('privacy');
+    document.getElementById('donateLink').textContent = ui('donate');
+    document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === S.lang)));
+    document.querySelectorAll('[role="tab"]').forEach(b => { b.dataset.tab === S.tab ? b.setAttribute('aria-selected', 'true') : b.setAttribute('aria-selected', 'false'); });
+  }
+
+  function renderAll() {
+    applyStaticText();
+    renderLab();
+    renderLessons();
+    renderCards();
+  }
+
+  function loadCircuit(circuit) {
+    pushUndo();
+    S.circuit = circuit;
+    S.selected = null;
+    S.pending = null;
+    S.measure = null;
+    S.simulated = false;
+    S.result = null;
+    afterEdit();
+  }
+
+  function bind() {
+    const svg = document.getElementById('board');
+    svg.addEventListener('pointerdown', onDown);
+    svg.addEventListener('pointermove', onMove);
+    svg.addEventListener('pointerup', onUp);
+    svg.addEventListener('pointercancel', onCancel);
+    svg.addEventListener('pointerleave', e => { if (S.down && !S.down.moved) onCancel(e); });
+
+    document.getElementById('side').addEventListener('input', e => {
+      const t = e.target;
+      const part = S.circuit.parts.find(p => p.id === S.selected);
+      if (!part) return;
+      if (t.dataset.range) {
+        const v = Number(t.value);
+        if (t.dataset.range === 'light') part.props.light = v / 100;
+        if (t.dataset.range === 'temp') part.props.temp = v;
+        if (t.dataset.range === 'pos') part.props.pos = v / 100;
+        const out = document.querySelector('[data-out="' + t.dataset.range + '"]');
+        if (out) out.textContent = v;
+        if (S.simulated) runSim(false);
+        renderBoard();
+        renderReadout();
+        saveStore();
+      }
+    });
+    document.getElementById('side').addEventListener('change', e => {
+      const t = e.target;
+      const part = S.circuit.parts.find(p => p.id === S.selected);
+      if (!part) return;
+      pushUndo();
+      if (t.dataset.prop) {
+        const v = t.value;
+        if (part.type === 'battery') part.props.V = Number(v);
+        else if (part.type === 'resistor') part.props.R = Number(v);
+        else if (part.type === 'led') part.props.color = v;
+        else if (part.type === 'capacitor') part.props.uF = Number(v);
+      }
+      if (t.dataset.check) {
+        if (t.dataset.check === 'pressed') part.props.pressed = t.checked;
+        if (t.dataset.check === 'on') part.props.on = t.checked;
+      }
+      afterEdit();
+    });
+    document.getElementById('side').addEventListener('click', e => {
+      const t = e.target.closest('[data-act]');
+      if (!t) return;
+      if (t.dataset.act === 'delete-part') removeSelected();
+      if (t.dataset.act === 'check') checkChallenge();
+      if (t.dataset.act === 'reset-challenge') { loadChallenge(S.challenge); renderLab(); }
+      if (t.dataset.act === 'next-challenge') { const id = nextChallengeId(); if (id) loadChallenge(id); renderLab(); }
+    });
+    document.getElementById('side').addEventListener('click', e => {
+      const b = e.target.closest('[data-challenge]');
+      if (!b) return;
+      loadChallenge(b.dataset.challenge);
+      renderLab();
+    });
+
+    document.getElementById('toolbar').addEventListener('click', e => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      if (t.dataset.tool) {
+        S.tool = t.dataset.tool;
+        S.pending = null;
+        if (S.tool !== 'measure') S.measure = null;
+        renderLab();
+      } else if (t.dataset.part) {
+        S.tool = 'place';
+        S.partType = t.dataset.part;
+        S.pending = null;
+        renderLab();
+        toast(ui('placeHint'));
+      }
+    });
+    document.getElementById('btnSimulate').addEventListener('click', () => {
+      runSim(true);
+      saveStore();
+      renderLab();
+    });
+    document.getElementById('btnUndo').addEventListener('click', undo);
+    document.getElementById('btnClear').addEventListener('click', () => {
+      if (!S.circuit.parts.length && !S.circuit.wires.length) return;
+      loadCircuit({ parts: [], wires: [] });
+    });
+    document.getElementById('examples').addEventListener('change', e => {
+      const v = e.target.value;
+      if (v === '') return;
+      const preset = LESSONS[Number(v)].preset;
+      loadCircuit(E.buildCircuit(preset));
+      e.target.value = '';
+      setTab('lab');
+    });
+
+    document.querySelectorAll('[role="tab"]').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+    document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+    document.getElementById('lessonsRoot').addEventListener('click', e => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      if (t.dataset.lesson !== undefined) { S.lesson = Number(t.dataset.lesson); lessonOpen = true; saveStore(); renderLessons(); window.scrollTo(0, 0); return; }
+      const act = t.dataset.act;
+      if (act === 'lesson-prev' && S.lesson > 0) { S.lesson--; renderLessons(); window.scrollTo(0, 0); }
+      if (act === 'lesson-next' && S.lesson < LESSONS.length - 1) { S.lesson++; renderLessons(); window.scrollTo(0, 0); }
+      if (act === 'lessons-back') { lessonOpen = false; renderLessons(); }
+      if (act === 'lesson-load') {
+        const preset = LESSONS[S.lesson].preset;
+        loadCircuit(E.buildCircuit(preset));
+        setTab('lab');
+      }
+    });
+    document.getElementById('cardsRoot').addEventListener('click', e => {
+      const t = e.target.closest('button');
+      if (!t) return;
+      if (t.dataset.cat) { S.deck.cat = t.dataset.cat; shuffleDeck(); renderCards(); return; }
+      if (t.dataset.opt !== undefined) { cardOption(Number(t.dataset.opt)); return; }
+      if (t.dataset.act === 'cards-next') { cardNext(); return; }
+      if (t.dataset.act === 'cards-restart') { shuffleDeck(); renderCards(); }
+    });
+
+    document.addEventListener('keydown', e => {
+      if (S.tab === 'lab' || S.tab === 'repair') {
+        if ((e.key === 'Delete' || e.key === 'Backspace') && S.selected && !(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) { e.preventDefault(); removeSelected(); }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+        if (e.key === 'Escape') { S.tool = 'select'; S.pending = null; renderLab(); }
+      }
+    });
+  }
+
+  function init() {
+    const saved = loadStore();
+    S.lang = saved && saved.lang && LANGS.indexOf(saved.lang) >= 0 ? saved.lang : detectLang();
+    S.done = saved && saved.done ? saved.done : {};
+    if (saved && saved.circuit && Array.isArray(saved.circuit.parts)) S.circuit = saved.circuit;
+    S.challenge = saved && saved.challenge ? saved.challenge : null;
+    S.tab = saved && saved.tab && ['lab', 'lessons', 'cards', 'repair'].indexOf(saved.tab) >= 0 ? saved.tab : 'lab';
+    document.documentElement.lang = S.lang === 'sr-latn' ? 'sr-Latn' : (S.lang === 'sr-cyrl' ? 'sr-Cyrl' : S.lang);
+    bind();
+    document.querySelectorAll('section.view').forEach(s => s.classList.remove('active'));
+    const v = S.tab === 'lessons' ? 'view-lessons' : S.tab === 'cards' ? 'view-cards' : 'view-lab';
+    document.getElementById(v).classList.add('active');
+    if (S.tab === 'repair' && !S.challenge) loadChallenge(CHALLENGES[0].id);
+    renderAll();
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+      navigator.serviceWorker.register('./sw.js').catch(() => { /* offline support is optional */ });
+    }
+  }
+
+  // boot
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+</script>
+<noscript><p style="padding:16px">Circuit Lab needs JavaScript to run the simulator.</p></noscript>
+</body>
+</html>

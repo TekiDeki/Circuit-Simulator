@@ -1,0 +1,15 @@
+{
+  "name": "Circuit Lab",
+  "short_name": "Circuit Lab",
+  "description": "Breadboard circuit simulator with lessons, quiz cards and broken circuits. Free, offline, four languages.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f6",
+  "theme_color": "#0f766e",
+  "lang": "en",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
